@@ -1,0 +1,1064 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#4caf80">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="脊柱矫正日记">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon.svg">
+<title>我的脊柱矫正日记</title>
+<style>
+  :root{
+    --green:#3fae7a; --green-deep:#2f9e6b; --green-light:#e9f7f0; --green-soft:#f3fbf7;
+    --bg:#ffffff; --panel:#ffffff; --line:#eef1ee; --text:#2f3a34; --muted:#8a958f;
+    --red:#e2675b; --amber:#e8a13a; --shadow:0 6px 22px rgba(47,158,107,.10);
+    --radius:16px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;height:100%;}
+  body{
+    font-family:"Microsoft YaHei","微软雅黑",-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",sans-serif;
+    color:var(--text); background:var(--green-soft); font-size:15px; line-height:1.6;
+    -webkit-font-smoothing:antialiased; overflow:hidden;
+  }
+  button{font-family:inherit;cursor:pointer;border:none;background:none;}
+  input,select,textarea{font-family:inherit;font-size:15px;color:var(--text);}
+
+  /* ---------- 欢迎页 ---------- */
+  #welcome{position:fixed;inset:0;z-index:60;background:linear-gradient(160deg,#f3fbf7 0%,#e9f7f0 55%,#dff3ea 100%);
+    display:flex;align-items:center;justify-content:center;padding:24px;transition:opacity .6s ease, transform .6s ease;}
+  #welcome.hide{opacity:0;transform:scale(1.04);pointer-events:none;}
+  .welcome-card{background:#fff;border-radius:24px;box-shadow:var(--shadow);max-width:420px;width:100%;padding:34px 28px;text-align:center;}
+  .welcome-card h1{font-size:24px;margin:6px 0 4px;color:var(--green-deep);}
+  .welcome-card p.sub{color:var(--muted);margin:0 0 22px;font-size:14px;}
+  .field{text-align:left;margin:14px 0;}
+  .field label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px;}
+  .field input,.field select{width:100%;padding:11px 13px;border:1.5px solid var(--line);border-radius:12px;background:#fbfdfc;outline:none;transition:.2s;}
+  .field input:focus,.field select:focus{border-color:var(--green);background:#fff;}
+  .row2{display:flex;gap:12px;}
+  .row2 .field{flex:1;}
+  .btn-primary{margin-top:20px;width:100%;padding:13px;border-radius:14px;background:var(--green);color:#fff;font-size:16px;font-weight:600;box-shadow:0 8px 18px rgba(63,174,122,.28);transition:.2s;}
+  .btn-primary:active{transform:scale(.98);}
+  .welcome-nurse{width:118px;height:150px;margin:0 auto 4px;}
+  .profile-list{display:flex;flex-direction:column;gap:10px;margin:12px 0 16px;text-align:left;}
+  .profile-card{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1.5px solid var(--line);border-radius:14px;background:#fbfdfc;cursor:pointer;transition:.15s;}
+  .profile-card:active{transform:scale(.985);}
+  .profile-card .avatar{width:42px;height:42px;flex:0 0 42px;border-radius:50%;background:var(--green-light);display:flex;align-items:center;justify-content:center;font-size:21px;}
+  .profile-card .pc-name{font-weight:700;color:var(--text);}
+  .profile-card .pc-meta{font-size:12px;color:var(--muted);}
+  .welcome-actions{display:flex;flex-direction:column;gap:10px;margin-top:4px;}
+  .btn-ghost-wide{width:100%;padding:12px;border-radius:13px;background:#fff;border:1.5px solid var(--line);color:var(--muted);font-weight:600;font-size:15px;}
+  .btn-export{background:var(--green-light);color:var(--green-deep);border-color:var(--green-light);}
+
+  /* ---------- 应用骨架 ---------- */
+  #app{display:none;height:100%;position:relative;}
+  #app.show{display:flex;}
+  .sidebar{width:148px;flex:0 0 148px;background:#fff;border-right:1px solid var(--line);
+    display:flex;flex-direction:column;transition:width .25s ease,flex-basis .25s ease;overflow:hidden;}
+  .sidebar.collapsed{width:66px;flex-basis:66px;}
+  .brand{display:flex;align-items:center;gap:9px;padding:16px 14px;border-bottom:1px solid var(--line);white-space:nowrap;}
+  .brand .logo{width:30px;height:30px;flex:0 0 30px;border-radius:9px;background:var(--green-light);display:flex;align-items:center;justify-content:center;font-size:17px;}
+  .brand .name{font-weight:700;color:var(--green-deep);font-size:15px;}
+  .sidebar.collapsed .brand .name{display:none;}
+  .nav{flex:1;padding:10px 8px;display:flex;flex-direction:column;gap:4px;overflow-y:auto;}
+  .nav-item{display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:12px;color:var(--muted);font-size:15px;white-space:nowrap;transition:.15s;}
+  .nav-item .ico{width:22px;height:22px;flex:0 0 22px;font-size:18px;text-align:center;}
+  .nav-item.active{background:var(--green-light);color:var(--green-deep);font-weight:600;}
+  .nav-item:active{background:var(--green-light);}
+  .sidebar.collapsed .nav-item span.txt{display:none;}
+  .side-foot{padding:10px 8px;border-top:1px solid var(--line);}
+  .side-foot button{display:flex;align-items:center;gap:10px;width:100%;padding:9px 12px;border-radius:10px;color:var(--muted);font-size:13px;}
+  .side-foot button .ico{width:20px;text-align:center;}
+  .sidebar.collapsed .side-foot button span.txt{display:none;}
+  .collapse-btn{position:absolute;top:18px;left:148px;z-index:20;width:22px;height:22px;border-radius:50%;background:#fff;border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;color:var(--green);font-size:13px;box-shadow:var(--shadow);transition:left .25s ease;}
+  .sidebar.collapsed ~ .collapse-btn,.collapse-btn.collapsed{left:66px;}
+
+  .main{flex:1;min-width:0;height:100%;overflow-y:auto;background:var(--green-soft);position:relative;padding:18px 20px 96px;}
+  .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+  .topbar h2{margin:0;font-size:20px;color:var(--text);}
+  .topbar .date{color:var(--muted);font-size:13px;}
+  .card{background:var(--panel);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px;margin-bottom:16px;}
+  .card h3{margin:0 0 12px;font-size:16px;color:var(--green-deep);display:flex;align-items:center;gap:8px;}
+  .card h3 .em{font-size:17px;}
+  .hint{color:var(--muted);font-size:13px;}
+
+  /* 进度时间轴 */
+  .timeline{display:flex;flex-direction:column;gap:0;margin-top:6px;}
+  .tl-step{display:flex;gap:14px;position:relative;padding-bottom:16px;}
+  .tl-step:last-child{padding-bottom:0;}
+  .tl-dot{width:24px;height:24px;flex:0 0 24px;border-radius:50%;background:#fff;border:2px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--muted);z-index:2;}
+  .tl-step.done .tl-dot{background:var(--green);border-color:var(--green);color:#fff;}
+  .tl-step.cur .tl-dot{border-color:var(--green);box-shadow:0 0 0 4px var(--green-light);}
+  .tl-line{position:absolute;left:11px;top:24px;bottom:0;width:2px;background:var(--line);}
+  .tl-step.done .tl-line{background:var(--green);}
+  .tl-body{flex:1;padding-top:1px;}
+  .tl-body .t{font-weight:600;}
+  .tl-step:not(.done) .tl-body .t{color:var(--muted);}
+  .tl-body .d{font-size:12px;color:var(--muted);}
+
+  .edu{border-left:3px solid var(--green);background:var(--green-soft);padding:12px 14px;border-radius:0 12px 12px 0;margin-top:10px;font-size:14px;}
+  .edu ul{margin:6px 0 0;padding-left:18px;}
+  .edu li{margin:4px 0;}
+
+  /* 表单/按钮 */
+  .btn{display:inline-flex;align-items:center;gap:6px;padding:9px 15px;border-radius:11px;background:var(--green-light);color:var(--green-deep);font-weight:600;font-size:14px;transition:.15s;}
+  .btn:active{transform:scale(.97);}
+  .btn.solid{background:var(--green);color:#fff;box-shadow:0 6px 14px rgba(63,174,122,.25);}
+  .btn.ghost{background:#fff;border:1.5px solid var(--line);color:var(--muted);}
+  .btn.danger{background:#fdecea;color:var(--red);}
+  .pill{display:inline-block;padding:4px 11px;border-radius:20px;background:var(--green-light);color:var(--green-deep);font-size:12px;font-weight:600;margin:2px;}
+
+  /* 列表/历史折叠 */
+  .rec{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px;background:#fff;}
+  .rec .hd{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+  .rec .hd .t{font-weight:600;}
+  .rec .hd .m{color:var(--muted);font-size:12px;}
+  .rec .bd{margin-top:8px;font-size:14px;color:var(--text);}
+  .fold-btn{background:var(--green-light);color:var(--green-deep);border-radius:8px;padding:3px 9px;font-size:12px;font-weight:600;}
+  .day-group{border:1px solid var(--line);border-radius:14px;margin-bottom:12px;overflow:hidden;background:#fff;}
+  .day-group > .dh{display:flex;align-items:center;justify-content:space-between;padding:11px 14px;background:var(--green-soft);cursor:pointer;}
+  .day-group > .dh .dt{font-weight:700;color:var(--green-deep);}
+  .day-group > .dh .cnt{color:var(--muted);font-size:12px;}
+  .day-group .db{padding:12px 14px;display:none;}
+  .day-group.open .db{display:block;}
+
+  /* 护士 */
+  #nurse{position:fixed;right:14px;bottom:14px;z-index:50;width:128px;height:170px;pointer-events:none;}
+  #nurse .bubble{position:absolute;right:6px;bottom:150px;max-width:200px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:9px 12px;font-size:13px;box-shadow:var(--shadow);opacity:0;transform:translateY(6px);transition:.3s;color:var(--text);}
+  #nurse.show .bubble{opacity:1;transform:translateY(0);}
+  #nurse .bubble:after{content:"";position:absolute;right:24px;bottom:-7px;width:12px;height:12px;background:#fff;border-right:1px solid var(--line);border-bottom:1px solid var(--line);transform:rotate(45deg);}
+  .nurse-svg{width:128px;height:160px;transform-origin:bottom center;}
+
+  /* toast */
+  #toast{position:fixed;left:50%;top:18px;transform:translateX(-50%);z-index:80;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none;}
+  .toast{background:#2f3a34;color:#fff;padding:10px 16px;border-radius:22px;font-size:13px;box-shadow:var(--shadow);opacity:0;transform:translateY(-10px);transition:.3s;max-width:88vw;}
+  .toast.show{opacity:1;transform:translateY(0);}
+
+  /* 模态 */
+  .modal-mask{position:fixed;inset:0;background:rgba(47,58,52,.4);z-index:70;display:none;align-items:center;justify-content:center;padding:20px;}
+  .modal-mask.show{display:flex;}
+  .modal{background:#fff;border-radius:20px;max-width:440px;width:100%;padding:22px;max-height:86vh;overflow-y:auto;}
+  .modal h3{margin:0 0 14px;color:var(--green-deep);}
+  .modal .field input,.modal .field select,.modal .field textarea{width:100%;padding:10px 12px;border:1.5px solid var(--line);border-radius:10px;background:#fbfdfc;outline:none;}
+  .modal .field textarea{resize:vertical;min-height:70px;}
+  .modal-actions{display:flex;gap:10px;margin-top:16px;}
+  .modal-actions .btn{flex:1;justify-content:center;}
+
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .stat{background:var(--green-soft);border-radius:12px;padding:12px;text-align:center;}
+  .stat .n{font-size:22px;font-weight:700;color:var(--green-deep);}
+  .stat .l{font-size:12px;color:var(--muted);}
+  .checklist{list-style:none;padding:0;margin:0;}
+  .checklist li{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px dashed var(--line);}
+  .checklist li .ck{width:20px;height:20px;border-radius:50%;border:2px solid var(--line);flex:0 0 20px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;}
+  .checklist li.done .ck{background:var(--green);border-color:var(--green);}
+  .checklist li.done .tx{color:var(--text);}
+  .checklist li:not(.done) .tx{color:var(--muted);}
+
+  .meal-img{width:64px;height:64px;object-fit:cover;border-radius:10px;border:1px solid var(--line);}
+  .food-pick{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
+  .food-opt{padding:5px 10px;border:1.5px solid var(--line);border-radius:18px;font-size:13px;color:var(--muted);}
+  .food-opt.on{background:var(--green);border-color:var(--green);color:#fff;}
+
+  .video-box{position:relative;background:#eef3f0;border-radius:12px;overflow:hidden;aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;color:var(--muted);}
+  .video-box video{width:100%;height:100%;object-fit:cover;}
+
+  .mood-face{font-size:30px;}
+  .mood-row{display:flex;gap:8px;flex-wrap:wrap;}
+  .mood-opt{flex:1;min-width:54px;text-align:center;padding:10px 4px;border:1.5px solid var(--line);border-radius:12px;color:var(--muted);}
+  .mood-opt.on{background:var(--green-light);border-color:var(--green);color:var(--green-deep);}
+
+  .empty{color:var(--muted);font-size:14px;text-align:center;padding:18px 0;}
+
+  @media (max-width:600px){
+    .sidebar{position:fixed;left:0;top:0;bottom:0;z-index:30;box-shadow:var(--shadow);}
+    .sidebar.collapsed{transform:translateX(0);}
+    .collapse-btn{display:none;}
+    .main{padding:14px 14px 110px 78px;}
+    .grid2{grid-template-columns:1fr;}
+    #nurse{transform:scale(.82);transform-origin:bottom right;}
+  }
+  @media (min-width:601px){ .collapse-btn{display:flex;} }
+</style>
+</head>
+<body>
+
+<!-- ===== 欢迎页 / 身份登录 ===== -->
+<div id="welcome">
+  <div class="welcome-card">
+    <div class="welcome-nurse" id="welcomeNurse"></div>
+    <div id="welcomeBody"></div>
+  </div>
+</div>
+
+<!-- ===== 应用 ===== -->
+<div id="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand"><div class="logo">🌿</div><div class="name">脊柱矫正日记</div></div>
+    <nav class="nav" id="nav">
+      <div class="nav-item active" data-mod="progress"><span class="ico">📈</span><span class="txt">进度</span></div>
+      <div class="nav-item" data-mod="diet"><span class="ico">🍱</span><span class="txt">饮食</span></div>
+      <div class="nav-item" data-mod="pain"><span class="ico">💢</span><span class="txt">疼痛</span></div>
+      <div class="nav-item" data-mod="sport"><span class="ico">🤸</span><span class="txt">运动</span></div>
+      <div class="nav-item" data-mod="mood"><span class="ico">💗</span><span class="txt">心情</span></div>
+    </nav>
+    <div class="side-foot">
+      <button id="backupBtn"><span class="ico">💾</span><span class="txt">数据备份</span></button>
+      <button id="switchBtn"><span class="ico">🔄</span><span class="txt">切换身份</span></button>
+    </div>
+  </aside>
+  <button class="collapse-btn" id="collapseBtn">‹</button>
+
+  <main class="main" id="main">
+    <div class="topbar">
+      <h2 id="modTitle">进度</h2>
+      <div class="date" id="todayDate"></div>
+    </div>
+    <div id="modBody"></div>
+  </main>
+</div>
+
+<!-- 护士 -->
+<div id="nurse">
+  <div class="bubble" id="nurseBubble"></div>
+  <div id="nurseSvgWrap"></div>
+</div>
+
+<div id="toast"></div>
+
+<!-- 模态 -->
+<div class="modal-mask" id="modalMask">
+  <div class="modal" id="modalBox"></div>
+</div>
+
+<script>
+"use strict";
+/* ================= 数据层 ================= */
+const KEY="spineDiary_v2";
+const DB={
+  data:{profiles:{},order:[],current:null},
+  load(){
+    let raw=localStorage.getItem(KEY);
+    if(!raw){ // 尝试从旧版本(v1)迁移
+      const old=localStorage.getItem("spineDiary_v1");
+      if(old){ try{ raw=this.migrateV1(JSON.parse(old)); }catch(e){ raw=null; } }
+    }
+    if(raw){ try{this.data=JSON.parse(raw);}catch(e){this.data={profiles:{},order:[],current:null};} }
+    else this.data={profiles:{},order:[],current:null};
+    if(!this.data.profiles){ // 旧结构兜底：包裹为单一身份
+      const o=this.data; const med=(o.user&&o.user.medicalNo)||"UNKNOWN"; const key=String(med).toUpperCase();
+      this.data={profiles:{},order:[],current:null};
+      if(o.user){ this.data.profiles[key]={profile:o.user,stage:o.stage||{},diet:o.diet||{},pain:o.pain||{},gi:o.gi||{},exercise:o.exercise||{},mood:o.mood||{},diary:o.diary||{},remindLog:o.remindLog||{}}; this.data.order=[key]; this.data.current=key; }
+    }
+    if(!this.data.order)this.data.order=[];
+    if(this.data.current&&!this.data.profiles[this.data.current])this.data.current=null;
+    this.save();
+    return this.data;
+  },
+  migrateV1(o){
+    const med=(o.user&&o.user.medicalNo)||"UNKNOWN"; const key=String(med).toUpperCase();
+    const data={profiles:{},order:[],current:null};
+    if(o.user){ data.profiles[key]={profile:o.user,stage:o.stage||{},diet:o.diet||{},pain:o.pain||{},gi:o.gi||{},exercise:o.exercise||{},mood:o.mood||{},diary:o.diary||{},remindLog:o.remindLog||{}}; data.order=[key]; data.current=key; }
+    return JSON.stringify(data);
+  },
+  save(){ try{localStorage.setItem(KEY,JSON.stringify(this.data));}catch(e){toast("存储空间不足，请清理旧记录");} },
+  get(k,d){return this.data[k]!==undefined?this.data[k]:d;}
+};
+// 当前使用身份
+function P(){ const c=DB.data.current; return DB.data.profiles[c]; }
+// 确保某身份存在并返回其数据仓库
+function ensureProfile(no){
+  const key=String(no==null?"":no).toUpperCase();
+  if(!DB.data.profiles[key]){
+    DB.data.profiles[key]={profile:{medicalNo:no},stage:{},diet:{},pain:{},gi:{},exercise:{},mood:{},diary:{},remindLog:{}};
+    DB.data.order.push(key);
+  }
+  DB.data.current=key;
+  return DB.data.profiles[key];
+}
+function escHtml(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+function today(){const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
+function nowTime(){const d=new Date();return String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0");}
+function stamp(){return Date.now();}
+function fmtDateLabel(s){const [y,m,d]=s.split("-");return `${m}月${d}日`;}
+
+/* ================= 通用工具 ================= */
+function toast(msg){const box=document.getElementById("toast");const el=document.createElement("div");el.className="toast";el.textContent=msg;box.appendChild(el);requestAnimationFrame(()=>el.classList.add("show"));setTimeout(()=>{el.classList.remove("show");setTimeout(()=>el.remove(),300);},2600);}
+function el(html){const t=document.createElement("template");t.innerHTML=html.trim();return t.content.firstChild;}
+
+/* ================= 护士 ================= */
+const NURSE_STATIC=`
+<svg class="nurse-svg" id="nurseSvg" viewBox="0 0 128 164" xmlns="http://www.w3.org/2000/svg">
+  <g id="nurseRoot">
+    <ellipse cx="64" cy="159" rx="32" ry="6" fill="rgba(47,158,107,.12)"/>
+    <g id="nurseBody">
+      <path d="M43 154 Q40 102 64 98 Q88 102 85 154 Z" fill="#62c79c"/>
+      <path d="M64 98 L64 154" stroke="#3fae7a" stroke-width="1.5" opacity=".45"/>
+      <path d="M64 98 L53 116 L64 124 L75 116 Z" fill="#eaf6ef"/>
+      <rect x="60.5" y="118" width="7" height="15" rx="2" fill="#3fae7a"/>
+      <rect x="57.5" y="121" width="13" height="7" rx="2" fill="#3fae7a"/>
+      <path d="M57 116 Q60 134 64 136 Q68 134 71 116" stroke="#2f9e6b" stroke-width="2" fill="none"/>
+      <circle cx="64" cy="138" r="3.6" fill="#2f9e6b"/>
+    </g>
+    <g id="armLeft"><path d="M47 106 Q33 122 37 142" stroke="#62c79c" stroke-width="11" stroke-linecap="round" fill="none"/><circle cx="37" cy="144" r="6" fill="#ffe3cb"/></g>
+    <g id="armRight" style="transform-origin:81px 106px;">
+      <path d="M81 106 Q95 122 91 142" stroke="#62c79c" stroke-width="11" stroke-linecap="round" fill="none"/>
+      <circle id="handRight" cx="91" cy="144" r="6" fill="#ffe3cb"/>
+      <g id="thumbUp" style="display:none;"><rect x="89" y="126" width="6" height="18" rx="3" fill="#ffe3cb"/><circle cx="92" cy="125" r="4" fill="#ffe3cb"/></g>
+    </g>
+    <g id="nurseHead" style="transform-origin:64px 66px;">
+      <path d="M37 66 Q35 30 64 30 Q93 30 91 66 Q91 88 78 94 L50 94 Q37 88 37 66Z" fill="#6b4f3a"/>
+      <circle cx="64" cy="66" r="28" fill="#ffe3cb"/>
+      <path d="M37 62 Q40 34 64 32 Q88 34 91 62 Q80 50 64 50 Q48 50 37 62Z" fill="#6b4f3a"/>
+      <path d="M45 41 Q64 23 83 41 L83 48 Q64 39 45 48 Z" fill="#ffffff" stroke="#d9efe4" stroke-width="1.2"/>
+      <rect x="60" y="31" width="8" height="8" rx="1.5" fill="#3fae7a"/>
+      <rect x="63" y="28.5" width="2" height="3" fill="#fff"/>
+      <rect x="62" y="30" width="4" height="2" fill="#fff"/>
+      <circle cx="54.5" cy="67" r="2.9" fill="#3a3a3a"/>
+      <circle cx="73.5" cy="67" r="2.9" fill="#3a3a3a"/>
+      <circle cx="55.3" cy="66.1" r="0.9" fill="#fff"/>
+      <circle cx="74.3" cy="66.1" r="0.9" fill="#fff"/>
+      <circle cx="48" cy="74" r="3.6" fill="#ffc2b0" opacity=".85"/>
+      <circle cx="80" cy="74" r="3.6" fill="#ffc2b0" opacity=".85"/>
+      <path d="M57 75 Q64 81 71 75" stroke="#d97a68" stroke-width="2.3" fill="none" stroke-linecap="round"/>
+    </g>
+  </g>
+  <style>
+    #nurseSvg.act-nod #nurseHead{animation:nod .7s ease;}
+    #nurseSvg.act-wave #armRight{animation:wave 1s ease;}
+    #nurseSvg.act-thumb #armRight{animation:thumbUp 1s ease;}
+    #nurseSvg.act-thumb #thumbUp{display:block;}
+    #nurseSvg.act-clap #armLeft{animation:clapL .7s ease;}
+    #nurseSvg.act-clap #armRight{animation:clapR .7s ease;}
+    #nurseSvg.act-blink #nurseHead{animation:blink 3s infinite;}
+    @keyframes nod{0%,100%{transform:rotate(0)}30%{transform:rotate(8deg)}60%{transform:rotate(-4deg)}}
+    @keyframes wave{0%,100%{transform:rotate(0)}25%{transform:rotate(-22deg)}50%{transform:rotate(8deg)}75%{transform:rotate(-14deg)}}
+    @keyframes thumbUp{0%{transform:rotate(0)}40%{transform:rotate(-80deg) translateY(-6px)}100%{transform:rotate(-70deg) translateY(-4px)}}
+    @keyframes clapL{0%,100%{transform:translateX(0)}50%{transform:translateX(14px) translateY(-4px)}}
+    @keyframes clapR{0%,100%{transform:translateX(0)}50%{transform:translateX(-14px) translateY(-4px)}}
+    @keyframes blink{0%,96%,100%{transform:scaleY(1)}98%{transform:scaleY(.1)}}
+  </style>
+</svg>`;
+
+function initNurse(){
+  document.getElementById("nurseSvgWrap").innerHTML=NURSE_STATIC;
+  document.getElementById("welcomeNurse").innerHTML=NURSE_STATIC.replace('id="nurseSvg"','id="welcomeNurseSvg"');
+  // 欢迎页护士轻微点头循环
+  const wn=document.getElementById("welcomeNurseSvg"); if(wn) wn.classList.add("act-blink");
+}
+let nurseTimer=null;
+function nurseSay(text,action){
+  const wrap=document.getElementById("nurse");
+  const svg=document.getElementById("nurseSvg");
+  const bubble=document.getElementById("nurseBubble");
+  bubble.textContent=text;
+  wrap.classList.add("show");
+  if(svg&&action){svg.classList.remove("act-nod","act-wave","act-thumb","act-clap");void svg.offsetWidth;svg.classList.add("act-"+action);}
+  clearTimeout(nurseTimer);
+  nurseTimer=setTimeout(()=>{wrap.classList.remove("show");if(svg)svg.classList.remove("act-nod","act-wave","act-thumb","act-clap");},4200);
+}
+
+/* ================= 宣教内容 ================= */
+const EDU={
+  in:{
+    title:"入院宣教",
+    items:[
+      "熟悉病房环境、主管医生与责任护士。",
+      "配合完成各项检查：全脊柱X线、MRI、CT、心肺功能等。",
+      "开始练习床上功能锻炼：踝泵运动、直腿抬高、深呼吸训练。",
+      "戒烟酒，保证营养摄入，为手术储备体力。",
+      "了解手术大致方案与风险，签署知情同意书。",
+      "如需佩戴支具，提前试戴并适应。"
+    ]
+  },
+  pre:{
+    title:"术前宣教",
+    items:[
+      "做好皮肤准备，配合备血。",
+      "继续坚持床上功能锻炼，练习床上排便。",
+      "保持情绪平稳，保证充足睡眠。",
+      "取下首饰、假牙、美甲等。",
+      "术前一日：当晚 22:00 开始禁食，夜间 0:00 开始禁水（麻醉安全要求，请严格遵守）。"
+    ]
+  },
+  post:{
+    title:"术后宣教",
+    items:[
+      "返回病房后去枕平卧（按麻醉方式），心电监护、吸氧。",
+      "保持伤口引流通畅，观察引流液颜色与量。",
+      "饮食：待排气后由流食逐步过渡到普食。",
+      "在护士指导下做踝泵、深呼吸、直腿抬高等功能锻炼。",
+      "做好疼痛管理：采用 NRS 评分，疼痛≥4分及时告知医生/护士。",
+      "观察下肢感觉与活动，有异常立即报告。"
+    ]
+  },
+  out:{
+    title:"出院宣教",
+    items:[
+      "正确佩戴支具，了解佩戴时长与注意事项。",
+      "按医嘱按时服药，保持伤口清洁干燥。",
+      "坚持居家功能锻炼计划，循序渐进。",
+      "注意营养与排便，避免弯腰提重物。",
+      "牢记复查时间，出现发热、伤口渗液、下肢无力等及时就诊。"
+    ]
+  },
+  dietpost:{
+    title:"术后饮食指导",
+    items:[
+      "麻醉清醒、肠蠕动恢复（排气）前禁食，切勿擅自进食。",
+      "排气后饮食顺序：流食 → 半流食 → 软食 → 普食，少量多餐、逐步过渡。",
+      "宜：高蛋白、高维生素、高纤维，多饮水，促进排便。",
+      "忌：牛奶、豆浆、甜食等易产气食物，以及辛辣刺激。",
+      "请记录排气、排便、腹胀情况，便于医护评估恢复。"
+    ]
+  },
+  postSport:{
+    title:"术后功能锻炼",
+    items:[
+      "麻醉清醒后即可开始踝泵运动、足趾活动，促进循环、预防下肢血栓。",
+      "术后第1天在护士指导下做床上直腿抬高，锻炼下肢肌力、保护脊柱稳定。",
+      "坚持深呼吸与有效咳嗽，预防肺部并发症。",
+      "逐步在佩戴支具保护下离床活动，循序渐进，避免扭转、屈曲腰部。",
+      "把每天的锻炼完成情况记到「运动」里，贵在坚持。"
+    ]
+  },
+  postPain:{
+    title:"术后疼痛管理",
+    items:[
+      "采用 NRS 数字评分法（0=无痛，10=最痛），按规定时间（0/4/8/12/16/20点）评估并记录。",
+      "疼痛 ≥ 4 分请及时告知医生或护士，必要时按医嘱使用镇痛药物。",
+      "可结合放松训练、听音乐、缓慢深呼吸等非药物方法缓解疼痛。",
+      "不要忍痛——规律镇痛更利于早期活动与康复。",
+      "出现突然加剧的剧痛（爆发痛）立即报告，并说明可能的诱因。"
+    ]
+  }
+};
+function eduHTML(key){
+  const e=EDU[key]; if(!e)return"";
+  return `<div class="edu"><b>${e.title}</b><ul>${e.items.map(i=>`<li>${i}</li>`).join("")}</ul></div>`;
+}
+
+/* ================= 阶段定义 ================= */
+const STAGES=[
+  {key:"in",name:"入院第一天"},
+  {key:"pre",name:"术前"},
+  {key:"pre1",name:"术前一日"},
+  {key:"op",name:"手术当天"},
+  {key:"post",name:"术后"},
+  {key:"out",name:"准备出院"}
+];
+function stageOf(date){const p=P();return p?p.stage[date]||null:null;}
+function setStage(date,key){const p=P();if(!p)return;p.stage[date]=key;DB.save();}
+
+/* ================= 饮食食物库 ================= */
+const FOOD_DB={
+  "流食":[["米汤",15],["藕粉(1包)",350],["果汁(1杯)",110],["清鸡汤(1碗)",30],["葡萄糖水",40]],
+  "半流食":[["白粥(1碗)",70],["面条(1碗)",110],["蒸蛋羹(1个)",90],["豆腐脑(1碗)",50],["肉末粥(1碗)",120],["酸奶(1杯)",70]],
+  "软食":[["软米饭(1碗)",130],["馒头(1个)",220],["清蒸鱼(1份)",150],["嫩炒蛋",140],["肉末蒸蛋",160],["煮软青菜",40]],
+  "普食":[["米饭(1碗)",230],["炒菜(1份)",150],["瘦肉(1份)",200],["鸡肉(1份)",180],["水果(1份)",80]]
+};
+
+/* ================= 图表 ================= */
+function lineChart(points,opts){
+  opts=opts||{};const w=opts.w||320,h=opts.h||160,pad=30;
+  if(!points||!points.length)return '<div class="empty">暂无数据，先记录几条吧～</div>';
+  const ys=points.map(p=>p.y);
+  let ymin=opts.ymin!==undefined?opts.ymin:Math.min(...ys);
+  let ymax=opts.ymax!==undefined?opts.ymax:Math.max(...ys);
+  if(ymax===ymin){ymax=ymin+1;}
+  const xstep=(w-2*pad)/Math.max(points.length-1,1);
+  const sx=i=>pad+i*xstep;
+  const sy=v=>h-pad-((v-ymin)/(ymax-ymin))*(h-2*pad);
+  const path=points.map((p,i)=>`${i?"L":"M"}${sx(i).toFixed(1)} ${sy(p.y).toFixed(1)}`).join(" ");
+  const dots=points.map((p,i)=>`<circle cx="${sx(i).toFixed(1)}" cy="${sy(p.y).toFixed(1)}" r="3.2" fill="#3fae7a"/>`).join("");
+  const xlab=points.map((p,i)=>`<text x="${sx(i).toFixed(1)}" y="${h-9}" font-size="9" fill="#9aa" text-anchor="middle">${p.x}</text>`).join("");
+  const ylab=`<text x="6" y="${pad-6}" font-size="9" fill="#9aa">${ymax}</text><text x="6" y="${h-pad+4}" font-size="9" fill="#9aa">${ymin}</text>`;
+  const area=`M${sx(0)} ${h-pad} `+points.map((p,i)=>`L${sx(i).toFixed(1)} ${sy(p.y).toFixed(1)}`).join(" ")+` L${sx(points.length-1)} ${h-pad} Z`;
+  return `<svg viewBox="0 0 ${w} ${h}" width="100%" style="max-width:${w}px"><path d="${area}" fill="rgba(63,174,122,.10)"/><path d="${path}" fill="none" stroke="#3fae7a" stroke-width="2" stroke-linejoin="round"/><line x1="${pad}" y1="${h-pad}" x2="${w-pad}" y2="${h-pad}" stroke="#eee"/><line x1="${pad}" y1="${pad}" x2="${pad}" y2="${h-pad}" stroke="#eee"/>${ylab}${dots}${xlab}</svg>`;
+}
+
+/* ================= 渲染：模块 ================= */
+let curMod="progress";
+function setMod(m){
+  curMod=m;
+  document.querySelectorAll(".nav-item").forEach(n=>n.classList.toggle("active",n.dataset.mod===m));
+  const titles={progress:"进度",diet:"饮食",pain:"疼痛",sport:"运动",mood:"心情"};
+  document.getElementById("modTitle").textContent=titles[m];
+  renderMod();
+}
+function renderMod(){
+  const body=document.getElementById("modBody");
+  if(curMod==="progress")body.innerHTML=renderProgress();
+  else if(curMod==="diet")body.innerHTML=renderDiet();
+  else if(curMod==="pain")body.innerHTML=renderPain();
+  else if(curMod==="sport")body.innerHTML=renderSport();
+  else if(curMod==="mood")body.innerHTML=renderMood();
+  if(curMod==="progress")bindProgress();
+  else if(curMod==="diet")bindDiet();
+  else if(curMod==="pain")bindPain();
+  else if(curMod==="sport")bindSport();
+  else if(curMod==="mood")bindMood();
+}
+
+/* ---- 进度 ---- */
+function renderProgress(){
+  const d=today();const cur=stageOf(d);
+  const tl=STAGES.map((s,i)=>{
+    const done = cur && STAGES.findIndex(x=>x.key===cur) > i;
+    const isCur = cur===s.key;
+    return `<div class="tl-step ${done?"done":""} ${isCur?"cur":""}">
+      <div class="tl-dot">${done?"✓":(i+1)}</div>
+      ${i<STAGES.length-1?'<div class="tl-line"></div>':""}
+      <div class="tl-body"><div class="t">${s.name}</div></div>
+    </div>`;
+  }).join("");
+  let edu="";
+  if(cur){
+    const s=STAGES.find(x=>x.key===cur);
+    const map={in:"in",pre:"pre",pre1:"pre",op:"post",post:"post",out:"out"};
+    edu=eduHTML(map[cur]);
+    if(["op","post","out"].includes(cur)) edu+=eduHTML("dietpost")+eduHTML("postSport")+eduHTML("postPain");
+    if(cur==="pre1") edu+=`<div class="edu" style="border-color:var(--amber);background:#fff7ec"><b>⏰ 今晚提醒</b><ul><li>22:00 开始<strong>禁食</strong></li><li>0:00 开始<strong>禁水</strong></li></ul></div>`;
+  }
+  const chk=dayChecklist(d);
+  const pct=Math.round(chk.filter(x=>x.done).length/chk.length*100);
+  const checklist=chk.map(x=>`<li class="${x.done?"done":""}"><span class="ck">${x.done?"✓":""}</span><span class="tx">${x.tx}</span></li>`).join("");
+  return `
+  <div class="card">
+    <h3><span class="em">📈</span>今日治疗进度</h3>
+    <p class="hint">请先勾选今天所处的治疗阶段：</p>
+    <div class="grid2" style="margin:10px 0">
+      ${STAGES.map(s=>`<button class="btn ${cur===s.key?"solid":"ghost"}" data-stage="${s.key}">${s.name}</button>`).join("")}
+    </div>
+    ${cur?`<div class="pill" style="margin-top:4px">当前：${STAGES.find(x=>x.key===cur).name}</div>`:""}
+  </div>
+  ${cur?`<div class="card"><h3><span class="em">🗺️</span>阶段时间轴</h3><div class="timeline">${tl}</div>${edu}</div>`:""}
+  <div class="card">
+    <h3><span class="em">✅</span>今日任务清单</h3>
+    <div class="stat" style="margin-bottom:10px"><div class="n">${pct}%</div><div class="l">今日完成度</div></div>
+    <ul class="checklist">${checklist}</ul>
+  </div>`;
+}
+function bindProgress(){
+  document.querySelectorAll("[data-stage]").forEach(b=>b.onclick=()=>{
+    setStage(today(),b.dataset.stage);
+    const s=STAGES.find(x=>x.key===b.dataset.stage);
+    nurseSay(`好的，已记录今天是「${s.name}」🌿`,"nod");
+    renderMod();
+  });
+}
+
+/* ---- 饮食 ---- */
+function renderDiet(){
+  const d=today();const stage=stageOf(d);
+  const list=P().diet[d]||[];
+  const total=list.reduce((a,b)=>a+(b.cal||0),0);
+  const meals=["早餐","午餐","晚餐","加餐"];
+  let html=`<div class="card"><h3><span class="em">🍱</span>今日饮食记录</h3>`;
+  html+=`<div class="grid2" style="margin-bottom:8px"><div class="stat"><div class="n">${total}</div><div class="l">今日总热量(kcal)</div></div><div class="stat"><div class="n">${list.length}</div><div class="l">已记录餐次</div></div></div>`;
+  html+=`<button class="btn solid" id="addMeal" style="width:100%;justify-content:center;margin-bottom:10px">＋ 记录一餐</button>`;
+  // 折线图
+  const last7=[];for(let i=6;i>=0;i--){const dd=new Date();dd.setDate(dd.getDate()-i);const s=dd.getFullYear()+"-"+String(dd.getMonth()+1).padStart(2,"0")+"-"+String(dd.getDate()).padStart(2,"0");const t=(P().diet[s]||[]).reduce((a,b)=>a+(b.cal||0),0);last7.push({x:String(dd.getMonth()+1)+"/"+dd.getDate(),y:t});}
+  html+=`<div style="margin-top:6px">${lineChart(last7,{ymin:0})}</div>`;
+  html+=`</div>`;
+
+  // 阶段相关
+  if(stage==="pre1"){
+    html+=`<div class="card" style="border-left:3px solid var(--amber)"><h3><span class="em">⏰</span>术前一日 · 禁食提醒</h3><div class="edu" style="border-color:var(--amber);background:#fff7ec;margin-top:0"><ul><li><strong>22:00</strong> 开始禁食（不吃任何食物）</li><li><strong>0:00</strong> 开始禁水（不喝任何液体）</li><li>这是麻醉安全的要求，请务必遵守，有事按呼叫器。</li></ul></div></div>`;
+  }
+  if(["op","post","out"].includes(stage)){
+    html+=`<div class="card"><h3><span class="em">🥣</span>术后饮食宣教</h3>${eduHTML("dietpost")}</div>`;
+    html+=`<div class="card"><h3><span class="em">💨</span>排气 / 排便 / 腹胀记录</h3>
+      <button class="btn" id="recAir">💨 记录排气</button>
+      <button class="btn" id="recStool">🚽 记录排便</button>
+      <button class="btn danger" id="recBloat">😣 记录腹胀</button>
+      <div id="giList"></div></div>`;
+  }
+
+  // 历史折叠
+  html+=renderHistory("diet",d,"饮食");
+  return html;
+}
+function bindDiet(){
+  const add=document.getElementById("addMeal"); if(add)add.onclick=openMealModal;
+  const ra=document.getElementById("recAir"); if(ra)ra.onclick=()=>{giRecord("排气");};
+  const rs=document.getElementById("recStool"); if(rs)rs.onclick=()=>{giRecord("排便");};
+  const rb=document.getElementById("recBloat"); if(rb)rb.onclick=()=>{giRecord("腹胀");};
+  bindHistory();
+  const gl=document.getElementById("giList"); if(gl)renderGI(gl);
+}
+function renderGI(box){
+  const d=today();const list=(P().gi&&P().gi[d])||[];
+  box.innerHTML=list.length?list.slice().reverse().map(r=>`<div class="rec"><div class="hd"><span class="t">${r.type}</span><span class="m">${r.time}</span></div></div>`).join(""):'<p class="hint" style="margin-top:8px">尚无记录</p>';
+}
+function giRecord(type){
+  const p=P(); if(!p.gi)p.gi={};
+  const d=today();if(!p.gi[d])p.gi[d]=[];
+  p.gi[d].push({type,time:nowTime(),ts:stamp()});DB.save();
+  if(type==="排气"){nurseSay("太棒了，排气说明肠胃在恢复💪","thumb");p.remindLog[d+"_air"]=stamp();}
+  else if(type==="腹胀"){const n=p.gi[d].filter(x=>x.type==="腹胀").length; if(n>=2){nurseSay("反复腹胀了，记得及时告诉主管护师或医生哦🤗","wave");}else{nurseSay("记下来啦，如果一直胀请告诉护士～","nod");}}
+  else nurseSay("记录好啦，继续保持🌿","nod");
+  renderMod();
+}
+
+/* 饮食录入模态 */
+function openMealModal(){
+  const meals=["早餐","午餐","晚餐","加餐"];
+  const types=Object.keys(FOOD_DB);
+  const box=document.getElementById("modalBox");
+  box.innerHTML=`
+    <h3>记录一餐</h3>
+    <div class="field"><label>餐次</label><select id="mMeal">${meals.map(m=>`<option>${m}</option>`).join("")}</select></div>
+    <div class="field"><label>进食时间</label><input id="mTime" type="time" value="${nowTime()}"></div>
+    <div class="field"><label>饮食类型（系统将自动识别建议）</label><select id="mType">${types.map(t=>`<option>${t}</option>`).join("")}</select></div>
+    <div class="field"><label>餐食照片（可选，自动压缩存储）</label><input id="mImg" type="file" accept="image/*"></div>
+    <div id="mPrev"></div>
+    <div class="field"><label>选择食物（自动累加热量）</label><div class="food-pick" id="mFoods"></div></div>
+    <div class="field"><label>或手动填写热量(kcal)</label><input id="mCal" type="number" min="0" placeholder="如 250"></div>
+    <div class="modal-actions">
+      <button class="btn ghost" id="mCancel">取消</button>
+      <button class="btn solid" id="mSave">保存</button>
+    </div>`;
+  openModal();
+  const mType=box.querySelector("#mType");const mFoods=box.querySelector("#mFoods");const mPrev=box.querySelector("#mPrev");
+  let picked={};let imgData="";
+  function renderFoods(){
+    const t=mType.value;mFoods.innerHTML=FOOD_DB[t].map(([n,c])=>`<span class="food-opt ${picked[n]?"on":""}" data-n="${n}" data-c="${c}">${n} ${c}</span>`).join("");
+    mFoods.querySelectorAll(".food-opt").forEach(o=>o.onclick=()=>{const n=o.dataset.n;if(picked[n])delete picked[n];else picked[n]=+o.dataset.c;renderFoods();syncCal();});
+  }
+  function syncCal(){const sum=Object.values(picked).reduce((a,b)=>a+b,0);box.querySelector("#mCal").value=sum||"";}
+  renderFoods();
+  box.querySelector("#mImg").onchange=e=>{
+    const f=e.target.files[0];if(!f)return;
+    compressImage(f,360,data=>{imgData=data;mPrev.innerHTML=`<img class="meal-img" src="${data}" style="margin-top:8px">`;});
+  };
+  box.querySelector("#mCancel").onclick=closeModal;
+  box.querySelector("#mSave").onclick=()=>{
+    const meal=box.querySelector("#mMeal").value;const time=box.querySelector("#mTime").value||nowTime();
+    const type=mType.value;let cal=parseInt(box.querySelector("#mCal").value)||0;
+    if(!cal&&Object.keys(picked).length===0){toast("请选择食物或填写热量");return;}
+    const d=today();if(!P().diet[d])P().diet[d]=[];
+    P().diet[d].push({meal,time,type,cal,img:imgData,foods:Object.keys(picked),ts:stamp()});DB.save();
+    nurseSay("吃得不错，已帮你记好热量啦🍽️","thumb");
+    closeModal();renderMod();
+  };
+}
+function compressImage(file,maxDim,cb){
+  const r=new FileReader();r.onload=e=>{const img=new Image();img.onload=()=>{const sc=Math.min(1,maxDim/Math.max(img.width,img.height));const c=document.createElement("canvas");c.width=img.width*sc;c.height=img.height*sc;const ctx=c.getContext("2d");ctx.drawImage(img,0,0,c.width,c.height);cb(c.toDataURL("image/jpeg",0.6));};img.src=e.target.result;};r.readAsDataURL(file);
+}
+
+/* ---- 疼痛 ---- */
+const BT_CAUSE=["A 无明显诱因","B 床上功能锻炼","C 离床活动","D 翻身","E 其他原因"];
+const PAIN_SLOTS=["00:00","04:00","08:00","12:00","16:00","20:00"];
+function currentDueSlot(d){
+  const recs=(P().pain[d]||[]).filter(p=>p.type==="routine").map(p=>p.slot);
+  const now=new Date();let due=null;
+  for(const s of PAIN_SLOTS){const h=+s.split(":")[0];const sd=new Date();sd.setHours(h,0,0,0);if(now>=sd&&!recs.includes(s))due=s;}
+  return due;
+}
+function renderPain(){
+  const d=today();
+  const list=P().pain[d]||[];
+  const routine=list.filter(p=>p.type==="routine");
+  const bt=list.filter(p=>p.type==="breakthrough");
+  const due=currentDueSlot(d);
+  let html=`<div class="card"><h3><span class="em">💢</span>疼痛记录（NRS）</h3>
+    <p class="hint">请按规定时间记录：0:00 / 4:00 / 8:00 / 12:00 / 16:00 / 20:00。漏记可随时补录。</p>
+    <div class="grid2" style="gap:8px">`;
+  html+=PAIN_SLOTS.map(s=>{
+    const rec=routine.find(p=>p.slot===s);
+    const isDue=s===due&&!rec;
+    return `<button class="btn ${rec?"solid":"ghost"}" data-slot="${s}" style="justify-content:center;${isDue?"box-shadow:0 0 0 3px var(--green-light);":""}">${s}${rec?` · ${rec.nrs}分`:""}${isDue?" ⏰":""}</button>`;
+  }).join("");
+  html+=`</div>`;
+  const pts=PAIN_SLOTS.map(s=>{const r=routine.find(p=>p.slot===s);return r?{x:s,y:r.nrs}:null;}).filter(Boolean);
+  html+=`<div style="margin-top:10px">${lineChart(pts,{ymin:0,ymax:10})}</div></div>`;
+  html+=`<div class="card"><h3><span class="em">⚡</span>爆发痛记录</h3>
+    <button class="btn danger" id="addBT" style="width:100%;justify-content:center">⚡ 记录爆发痛</button>
+    ${bt.length?bt.slice().reverse().map(p=>`<div class="rec"><div class="hd"><span class="t">爆发痛 NRS ${p.nrs}</span><span class="m">${p.time}</span></div><div class="bd">原因：${p.cause}</div></div>`).join(""):'<p class="hint" style="margin-top:8px">暂无爆发痛</p>'}
+  </div>`;
+  html+=renderHistory("pain",d,"疼痛");
+  return html;
+}
+function bindPain(){
+  const b=document.getElementById("addBT");if(b)b.onclick=()=>openPainModal("breakthrough");
+  document.querySelectorAll("[data-slot]").forEach(o=>o.onclick=()=>openPainModal("routine",o.dataset.slot));
+  bindHistory();
+}
+function openPainModal(type,slot){
+  const box=document.getElementById("modalBox");
+  const isBT=type==="breakthrough";
+  box.innerHTML=`
+    <h3>${isBT?"记录爆发痛":("记录疼痛 · "+slot)}</h3>
+    ${isBT?`<div class="field"><label>NRS 评分（4-10，爆发痛指≥4分）</label><input id="pNrs" type="range" min="4" max="10" value="5"><div style="text-align:center;font-size:26px;font-weight:700;color:var(--green-deep)" id="pVal">5</div></div>`
+      :`<div class="field"><label>NRS 评分（0-10）</label><input id="pNrs" type="range" min="0" max="10" value="3"><div style="text-align:center;font-size:26px;font-weight:700;color:var(--green-deep)" id="pVal">3</div></div>`}
+    ${isBT?`<div class="field"><label>可能原因</label><select id="pCause">${BT_CAUSE.map(c=>`<option>${c}</option>`).join("")}</select></div><div class="field"><label>补充说明（选填）</label><input id="pNote" placeholder="例如：翻身时突然加剧"></div>`
+      :`<div class="field"><label>备注（选填，如：静息 / 活动后）</label><input id="pNote" placeholder="选填"></div>`}
+    <div class="modal-actions"><button class="btn ghost" id="pCancel">取消</button><button class="btn solid" id="pSave">保存</button></div>`;
+  openModal();
+  const range=box.querySelector("#pNrs");const val=box.querySelector("#pVal");
+  range.oninput=()=>val.textContent=range.value;
+  box.querySelector("#pCancel").onclick=closeModal;
+  box.querySelector("#pSave").onclick=()=>{
+    const nrs=+range.value;const d=today();if(!P().pain[d])P().pain[d]=[];
+    const rec={type,nrs,time:nowTime(),ts:stamp()};
+    if(isBT){rec.cause=box.querySelector("#pCause").value+(box.querySelector("#pNote").value?("（"+box.querySelector("#pNote").value+"）"):"");}
+    else{rec.slot=slot;const note=box.querySelector("#pNote").value;if(note)rec.note=note;P().pain[d]=P().pain[d].filter(p=>!(p.type==="routine"&&p.slot===slot));}
+    P().pain[d].push(rec);DB.save();
+    if(isBT)nurseSay("已记录爆发痛（NRS "+nrs+" 分），请告诉护士原因并配合处理🌿","nod");
+    else if(nrs>=4)nurseSay("疼痛有点重，请马上告诉主管医生或护士哦🤗","wave");
+    else nurseSay(slot+" 已记录，疼痛我们一起管理💪","thumb");
+    closeModal();renderMod();
+  };
+}
+
+/* ---- 运动 ---- */
+function renderSport(){
+  const d=today();const ex=P().exercise[d]||{legRaise:[],anklePump:[],oob:0};
+  const vids=[
+    {name:"床上直腿抬高运动",desc:"仰卧，单腿伸直缓慢抬高约30-45°，保持5秒后放下，左右交替。锻炼股四头肌，保护脊柱稳定。",src:"leg-raise.mp4"},
+    {name:"踝泵运动",desc:"脚尖用力向上勾起保持数秒，再向下踩紧，反复进行。促进下肢血液循环，预防血栓。",src:""}
+  ];
+  let html=`<div class="card"><h3><span class="em">🤸</span>今日功能锻炼</h3>`;
+  html+=`<div class="grid2">
+    <div class="rec"><div class="hd"><span class="t">床上直腿抬高</span><span class="m">${ex.legRaise.length} 次</span></div><button class="btn solid" id="ckLeg" style="margin-top:8px;width:100%;justify-content:center">✓ 打卡</button></div>
+    <div class="rec"><div class="hd"><span class="t">踝泵运动</span><span class="m">${ex.anklePump.length} 次</span></div><button class="btn solid" id="ckAnkle" style="margin-top:8px;width:100%;justify-content:center">✓ 打卡</button></div>
+  </div>`;
+  html+=`<div class="field" style="margin-top:10px"><label>下床活动时间（分钟）</label><input id="oob" type="number" min="0" value="${ex.oob||0}"></div>`;
+  html+=`</div>`;
+  vids.forEach((v,i)=>{
+    html+=`<div class="card"><h3><span class="em">🎬</span>${v.name}</h3><p class="hint">${v.desc}</p>`;
+    if(v.src){
+      html+=`<div class="video-box" data-vsrc="${v.src}"><video controls preload="metadata" src="${v.src}"></video></div>`;
+    }else{
+      html+=`<div class="video-box"><span>▶ 踝泵运动参考视频暂未提供。<br>如有教学视频，可将文件命名为 <b>ankle-pump.mp4</b> 放入本应用同一文件夹后联系接入。</span></div>`;
+    }
+    html+=`</div>`;
+  });
+  html+=renderHistory("sport",d,"运动");
+  return html;
+}
+function bindSport(){
+  const d=today();
+  const ckL=document.getElementById("ckLeg");if(ckL)ckL.onclick=()=>{ensureEx(d);P().exercise[d].legRaise.push(nowTime());DB.save();nurseSay("直腿抬高做得好，加油！💪","thumb");renderMod();};
+  const ckA=document.getElementById("ckAnkle");if(ckA)ckA.onclick=()=>{ensureEx(d);P().exercise[d].anklePump.push(nowTime());DB.save();nurseSay("踝泵运动打卡成功🌿","clap");renderMod();};
+  const oob=document.getElementById("oob");if(oob)oob.onchange=()=>{ensureEx(d);P().exercise[d].oob=Math.max(0,+oob.value||0);DB.save();};
+  document.querySelectorAll(".video-box video").forEach(vid=>{
+    vid.addEventListener("error",()=>{
+      const box=vid.closest(".video-box");
+      box.innerHTML=`<span style="text-align:center;padding:14px">未找到视频文件 <b>${vid.getAttribute("src")}</b><br>请将该 MP4 放到本应用同一文件夹下，再刷新页面即可观看。</span>`;
+    });
+  });
+  bindHistory();
+}
+function ensureEx(d){if(!P().exercise[d])P().exercise[d]={legRaise:[],anklePump:[],oob:0};}
+
+/* ---- 心情 + 日记 ---- */
+function renderMood(){
+  const d=today();const m=P().mood[d]||{};
+  const faces=[["😄","开心"],["🙂","平静"],["😐","一般"],["😟","担忧"],["😢","难过"]];
+  let html=`<div class="card"><h3><span class="em">💗</span>今日心情</h3>
+    <div class="mood-row" id="moodRow">${faces.map(([f,n])=>`<div class="mood-opt ${m.mood===n?"on":""}" data-m="${n}"><div class="mood-face">${f}</div>${n}</div>`).join("")}</div>
+    <div class="field" style="margin-top:12px"><label>想对护士或自己说的话（选填）</label><textarea id="moodNote" placeholder="今天感觉怎么样？">${m.note||""}</textarea></div>
+    <button class="btn solid" id="saveMood" style="width:100%;justify-content:center;margin-top:4px">保存心情</button>
+  </div>`;
+  // 日记
+  const diary=P().diary[d];
+  html+=`<div class="card"><h3><span class="em">📝</span>我的康复日记</h3>`;
+  if(diary){
+    html+=`<div class="rec" style="border:none;background:var(--green-soft)"><div class="bd" style="white-space:pre-wrap">${diary}</div></div>
+      <button class="btn ghost" id="reDiary">重新生成</button>`;
+  }else{
+    html+=`<p class="hint">每晚 12 点后，系统会结合今天各模块记录，自动为你整理一篇温暖的小日记。你也可以现在提前生成：</p>
+      <button class="btn" id="genDiary">✨ 生成今日日记</button>`;
+  }
+  html+=`</div>`;
+  html+=renderHistory("mood",d,"心情");
+  return html;
+}
+function bindMood(){
+  const d=today();
+  document.querySelectorAll("#moodRow .mood-opt").forEach(o=>o.onclick=()=>{
+    document.querySelectorAll("#moodRow .mood-opt").forEach(x=>x.classList.remove("on"));o.classList.add("on");
+  });
+  const sm=document.getElementById("saveMood");if(sm)sm.onclick=()=>{
+    const sel=document.querySelector("#moodRow .mood-opt.on");const mood=sel?sel.dataset.m:"";
+    const note=document.getElementById("moodNote").value;
+    P().mood[d]={mood,note,ts:stamp()};DB.save();
+    nurseSay("收到你的心情啦，明天也要开开心心🌿","wave");renderMod();checkAllDone();
+  };
+  const gd=document.getElementById("genDiary");if(gd)gd.onclick=()=>{genDiary(d);renderMod();};
+  const rd=document.getElementById("reDiary");if(rd)rd.onclick=()=>{genDiary(d);renderMod();};
+  bindHistory();
+}
+function genDiary(d){
+  const u=P().profile||{};const stage=stageOf(d);const stName=stage?STAGES.find(x=>x.key===stage).name:"";
+  const diet=(P().diet[d]||[]);const dietCal=diet.reduce((a,b)=>a+(b.cal||0),0);
+  const pain=(P().pain[d]||[]);const maxPain=pain.length?Math.max(...pain.map(p=>p.nrs)):0;
+  const ex=P().exercise[d]||{};const leg=(ex.legRaise||[]).length;const ankle=(ex.anklePump||[]).length;const oob=ex.oob||0;
+  const m=P().mood[d]||{};
+  const gi=(P().gi&&P().gi[d])||[];
+  const greet=`亲爱的${u.name||"朋友"}`;
+  let body=`${fmtDateLabel(d)} 康复日记\n\n`;
+  body+=`今天是你在「${stName||"住院"}」阶段的一天。\n`;
+  if(diet.length)body+=`🍱 今天你认真记录了 ${diet.length} 餐饮食，合计约 ${dietCal} 千卡，身体在悄悄补充能量。\n`;else body+=`🍱 今天还没记录饮食，记得按时吃饭、补充营养哦。\n`;
+  if(pain.length)body+=`💢 今天共记录 ${pain.length} 次疼痛，最高 NRS ${maxPain} 分。疼痛是恢复路上的常客，我们一起慢慢管理它。\n`;else body+=`💢 今天还没有疼痛记录，若感到不适请随时告诉我们。\n`;
+  if(leg||ankle||oob)body+=`🤸 功能锻炼方面：直腿抬高 ${leg} 次、踝泵 ${ankle} 次、下床活动 ${oob} 分钟——每一次努力都在让脊梁更挺拔。\n`;else body+=`🤸 今天还没打卡运动，量力而行地动一动，对恢复很有帮助。\n`;
+  if(gi.length)body+=`💨 胃肠方面记录了：${gi.map(x=>x.type).join("、")}。\n`;
+  if(m.mood)body+=`💗 今天的心情是「${m.mood}」${m.note?("，"+m.note):""}。\n`;
+  body+=`\n愿你安心休养，配合治疗。挺拔的脊梁正在回来的路上，我们陪你一起，加油！🌿`;
+  P().diary[d]=body;DB.save();
+  nurseSay("你的康复日记写好啦，看看今天的自己多棒💪","clap");
+}
+
+/* ---- 历史折叠 ---- */
+function renderHistory(mod,d,_label){
+  // 收集今天之外、按日期倒序的日期
+  const store={diet:P().diet,pain:P().pain,sport:P().exercise,mood:P().mood}[mod]||{};
+  const dates=Object.keys(store).filter(x=>x!==d).sort().reverse();
+  if(!dates.length)return "";
+  let html=`<div class="card"><h3><span class="em">📂</span>历史记录（点击展开）</h3>`;
+  dates.forEach(dt=>{
+    const recs=store[dt];let inner="";
+    if(mod==="diet")inner=recs.map(r=>`<div class="rec"><div class="hd"><span class="t">${r.meal} · ${r.type}</span><span class="m">${r.time} · ${r.cal}kcal</span></div>${r.img?`<img class="meal-img" src="${r.img}" style="margin-top:6px">`:""}</div>`).join("");
+    else if(mod==="pain")inner=recs.map(r=>`<div class="rec"><div class="hd"><span class="t">${r.type==="breakthrough"?"⚡爆发痛":"疼痛"} NRS ${r.nrs}</span><span class="m">${r.time}</span></div>${r.cause?`<div class="bd">${r.cause}</div>`:""}</div>`).join("");
+    else if(mod==="sport"){const e=recs;inner=`<div class="rec"><div class="bd">直腿抬高 ${(e.legRaise||[]).length} 次 · 踝泵 ${(e.anklePump||[]).length} 次 · 下床 ${e.oob||0} 分钟</div></div>`;}
+    else if(mod==="mood"){const e=recs;inner=`<div class="rec"><div class="bd">心情：${e.mood||"-"}${e.note?("；"+e.note):""}</div></div>`;}
+    html+=`<div class="day-group"><div class="dh" data-dt="${dt}"><span class="dt">${fmtDateLabel(dt)}</span><span class="cnt">${Array.isArray(recs)?recs.length:(recs.legRaise?"1":1)} 条 ▾</span></div><div class="db">${inner}</div></div>`;
+  });
+  html+=`</div>`;return html;
+}
+function bindHistory(){
+  document.querySelectorAll(".day-group .dh").forEach(h=>h.onclick=()=>h.parentElement.classList.toggle("open"));
+}
+
+/* ================= 每日完成判定 ================= */
+function dayChecklist(d){
+  const stage=stageOf(d);
+  const diet=(P().diet[d]||[]).length>0;
+  const pain=(P().pain[d]||[]).length>0;
+  const ex=P().exercise[d]||{};
+  const sport=((ex.legRaise||[]).length>0)&&((ex.anklePump||[]).length>0)&&((ex.oob||0)>0);
+  const mood=!!P().mood[d];
+  return [
+    {tx:"勾选今日治疗进度",done:!!stage},
+    {tx:"记录今日饮食",done:diet},
+    {tx:"记录今日疼痛",done:pain},
+    {tx:"完成运动打卡（直腿抬高+踝泵+下床活动）",done:sport},
+    {tx:"记录今日心情",done:mood}
+  ];
+}
+let allDoneToday=false;
+function checkAllDone(){
+  if(!DB.data.current||!DB.data.profiles[DB.data.current])return;
+  const d=today();const chk=dayChecklist(d);
+  if(chk.every(x=>x.done)&&!allDoneToday){allDoneToday=true;nurseSay("今天计划全部完成，你真的太棒了！挺直脊梁，我们继续加油🌟","clap");}
+  if(!chk.every(x=>x.done))allDoneToday=false;
+}
+
+/* ================= 提醒引擎 ================= */
+function checkReminders(){
+  if(!DB.data.current||!DB.data.profiles[DB.data.current])return;
+  const d=today();const stage=stageOf(d);if(!stage)return;
+  const rl=P().remindLog;
+  // 疼痛：按六个固定时间点提醒（漏记可补录）
+  const recs=(P().pain[d]||[]).filter(p=>p.type==="routine").map(p=>p.slot);
+  const now=new Date();
+  for(const s of PAIN_SLOTS){
+    const h=+s.split(":")[0];const sd=new Date();sd.setHours(h,0,0,0);
+    if(now>=sd && !recs.includes(s)){
+      const key=d+"_slot_"+s;
+      if(!rl[key]||Date.now()-rl[key]>30*60*1000){rl[key]=Date.now();DB.save();nurseSay(`该记录 ${s} 的疼痛评分啦（NRS），点「疼痛」补录即可～`,"wave");toast(`提醒：请补录 ${s} 疼痛评分`);}
+      break;
+    }
+  }
+  // 术前一日禁食
+  if(stage==="pre1"){
+    const h=new Date().getHours();
+    if(h>=22&&(!rl[d+"_nofood"])){rl[d+"_nofood"]=Date.now();DB.save();nurseSay("提醒：今晚 22:00 起开始禁食啦🌙","wave");toast("术前一日：22:00 起禁食");}
+    if((h>=0&&h<6)&&(!rl[d+"_nowater"])){rl[d+"_nowater"]=Date.now();DB.save();nurseSay("提醒：0:00 起开始禁水，坚持一下哦💧","wave");toast("术前一日：0:00 起禁水");}
+  }
+  // 术后8h未排气
+  if(["op","post","out"].includes(stage)){
+    const gi=P().gi[d]||[];const air=gi.filter(x=>x.type==="排气");
+    if(!air.length){const firstStageTs=rl[d+"_stageSet"]||Date.now();if(Date.now()-firstStageTs>8*3600*1000&&(!rl[d+"_air"]||Date.now()-rl[d+"_air"]>2*3600*1000)){rl[d+"_air"]=Date.now();DB.save();nurseSay("超过8小时还没排气，多活动脚踝、深呼吸，并告诉护士哦🤗","wave");toast("超过8小时未排气，请告知护士");}}
+    // 反复腹胀
+    const bloat=gi.filter(x=>x.type==="腹胀");
+    if(bloat.length>=2&&(!rl[d+"_bloat"])){rl[d+"_bloat"]=Date.now();DB.save();nurseSay("腹胀反复，建议及时通知主管护师或主管医生～","wave");}
+  }
+}
+
+/* ================= 模态 ================= */
+function openModal(){document.getElementById("modalMask").classList.add("show");}
+function closeModal(){document.getElementById("modalMask").classList.remove("show");}
+document.getElementById("modalMask").onclick=e=>{if(e.target.id==="modalMask")closeModal();};
+
+/* ================= 导航/侧栏 ================= */
+document.querySelectorAll(".nav-item").forEach(n=>n.onclick=()=>setMod(n.dataset.mod));
+document.getElementById("collapseBtn").onclick=()=>{
+  const sb=document.getElementById("sidebar");sb.classList.toggle("collapsed");
+  document.getElementById("collapseBtn").classList.toggle("collapsed");
+  document.getElementById("collapseBtn").textContent=sb.classList.contains("collapsed")?"›":"‹";
+};
+// 备份（当前全部数据 JSON）
+document.getElementById("backupBtn").onclick=()=>{
+  const data=JSON.stringify(DB.data);
+  const blob=new Blob([data],{type:"application/json"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="脊柱矫正日记_备份_"+today()+".json";a.click();
+  toast("数据已导出为备份文件");
+};
+// 切换身份 → 返回欢迎/登录页
+document.getElementById("switchBtn").onclick=goWelcome;
+
+/* ================= Excel 全量导出 ================= */
+function isNumCell(v){return typeof v==="number"||(typeof v==="string"&&v!==""&&!/[\s]/.test(v)&&!isNaN(v)&&/^[+-]?[\d.]+$/.test(v));}
+function escXml(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&apos;");}
+function buildXls(sheets){
+  let out='<?xml version="1.0" encoding="UTF-8"?>\n<?mso-application progid="Excel.Sheet"?>\n<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">';
+  for(const name in sheets){
+    const rows=sheets[name].map(r=>"<Row>"+r.map(c=>`<Cell><Data ss:Type="${isNumCell(c)?"Number":"String"}">${escXml(c)}</Data></Cell>`).join("")+"</Row>").join("");
+    out+=`<Worksheet ss:Name="${escXml(name)}"><Table>${rows}</Table></Worksheet>`;
+  }
+  out+="</Workbook>";
+  return out;
+}
+function downloadFile(content,filename,mime){
+  const blob=new Blob([content],{type:mime||"text/plain;charset=utf-8"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=filename;a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1500);
+}
+function exportExcel(){
+  if(!DB.data.order.length){toast("还没有任何使用者数据");return;}
+  const stName=k=>(STAGES.find(s=>s.key===k)||{}).name||k;
+  const sheets={
+    "患者基本信息":[["姓名","性别","年龄","病案号","建档日期"]],
+    "进度":[["病案号","姓名","日期","阶段"]],
+    "饮食":[["病案号","姓名","日期","餐次","饮食类型","进食时间","热量(kcal)","食物"]],
+    "疼痛":[["病案号","姓名","日期","类型","时间","NRS","原因或备注"]],
+    "胃肠":[["病案号","姓名","日期","类型","时间"]],
+    "运动":[["病案号","姓名","日期","项目","次数或时长"]],
+    "心情日记":[["病案号","姓名","日期","心情","留言","日记"]]
+  };
+  DB.data.order.forEach(no=>{
+    const p=DB.data.profiles[no];if(!p)return;const pf=p.profile||{};const name=pf.name||"";const medno=pf.medicalNo||no;
+    sheets["患者基本信息"].push([name,pf.gender||"",pf.age!=null?pf.age:"",medno,pf.created||""]);
+    Object.keys(p.stage||{}).forEach(d=>sheets["进度"].push([medno,name,d,stName(p.stage[d])]));
+    Object.keys(p.diet||{}).forEach(d=>(p.diet[d]||[]).forEach(r=>sheets["饮食"].push([medno,name,d,r.meal,r.type,r.time,r.cal,r.foods?r.foods.join("、"):""])));
+    Object.keys(p.pain||{}).forEach(d=>(p.pain[d]||[]).forEach(r=>sheets["疼痛"].push([medno,name,d,r.type==="breakthrough"?"爆发痛":"常规",r.time,r.nrs,r.cause||r.note||""])));
+    Object.keys(p.gi||{}).forEach(d=>(p.gi[d]||[]).forEach(r=>sheets["胃肠"].push([medno,name,d,r.type,r.time])));
+    Object.keys(p.exercise||{}).forEach(d=>{const e=p.exercise[d]||{};sheets["运动"].push([medno,name,d,"床上直腿抬高",(e.legRaise||[]).length+" 次"]);sheets["运动"].push([medno,name,d,"踝泵运动",(e.anklePump||[]).length+" 次"]);sheets["运动"].push([medno,name,d,"下床活动",(e.oob||0)+" 分钟"]);});
+    Object.keys(p.mood||{}).forEach(d=>{const m=p.mood[d]||{};sheets["心情日记"].push([medno,name,d,m.mood||"",m.note||"",(p.diary&&p.diary[d])||""]);});
+  });
+  downloadFile(buildXls(sheets),"脊柱矫正日记_全量数据_"+today()+".xls","application/vnd.ms-excel");
+  toast("已导出 Excel（含全部身份数据）");
+}
+
+/* ================= 启动 ================= */
+function startApp(){
+  if(window.innerWidth<=600)document.getElementById("sidebar").classList.add("collapsed");
+  document.getElementById("app").classList.add("show");
+  document.getElementById("todayDate").textContent=fmtDateLabel(today())+" "+nowTime();
+  setMod("progress");
+  checkReminders();
+  checkAllDone();
+  // 进入问候
+  const u=P().profile||{};
+  setTimeout(()=>nurseSay(`亲爱的${u.name}，我来陪你啦，我们一起加油！🌿`,"wave"),900);
+}
+function welcomeLogin(){
+  const body=document.getElementById("welcomeBody");
+  const list=DB.data.order.map(no=>DB.data.profiles[no]).filter(Boolean);
+  const cards=list.map(no=>{
+    const p=DB.data.profiles[no];const pf=p.profile||{};
+    return `<div class="profile-card" data-no="${escHtml(no)}">
+      <div class="avatar">👤</div>
+      <div><div class="pc-name">${escHtml(pf.name||"未命名")}</div>
+      <div class="pc-meta">${escHtml(pf.gender||"")} ${pf.age!=null?pf.age+"岁":""} · 病案号 ${escHtml(pf.medicalNo!=null?pf.medicalNo:"")}</div></div>
+    </div>`;
+  }).join("");
+  body.innerHTML=`
+    <h1>我的脊柱矫正日记</h1>
+    <p class="sub">请选择使用身份，或新建一个独立档案</p>
+    <div class="profile-list">${cards||'<p class="hint" style="text-align:center">还没有使用者，点击下方新建</p>'}</div>
+    <div class="welcome-actions">
+      <button class="btn-primary" id="newIdentityBtn">＋ 新增使用身份</button>
+      <button class="btn-ghost-wide btn-export" id="exportBtn">📤 导出全部数据（Excel）</button>
+    </div>`;
+  body.querySelectorAll(".profile-card").forEach(c=>c.onclick=()=>loginAs(c.dataset.no));
+  body.querySelector("#newIdentityBtn").onclick=()=>welcomeForm(false);
+  body.querySelector("#exportBtn").onclick=exportExcel;
+}
+function welcomeForm(isFirst){
+  const body=document.getElementById("welcomeBody");
+  body.innerHTML=`
+    <h1>${isFirst?"欢迎使用":"新建使用身份"}</h1>
+    <p class="sub">${isFirst?"请填写身份信息，开启你的康复日记":"每位使用者独立建档，数据互不干扰"}</p>
+    <div class="field"><label>姓名</label><input id="wName" placeholder="请输入姓名" maxlength="20"></div>
+    <div class="row2">
+      <div class="field"><label>性别</label><select id="wGender"><option value="女">女</option><option value="男">男</option></select></div>
+      <div class="field"><label>年龄</label><input id="wAge" type="number" min="1" max="120" placeholder="岁"></div>
+    </div>
+    <div class="field"><label>病案号</label><input id="wNo" placeholder="请输入病案号" maxlength="30"></div>
+    <button class="btn-primary" id="wConfirm">确认，开始我的日记</button>
+    ${isFirst?"":'<button class="btn-ghost-wide" id="backBtn" style="margin-top:10px">← 返回选择身份</button>'}`;
+  body.querySelector("#wConfirm").onclick=()=>{
+    const name=body.querySelector("#wName").value.trim();
+    const age=body.querySelector("#wAge").value.trim();
+    const no=body.querySelector("#wNo").value.trim();
+    if(!name){toast("请填写姓名");return;}
+    if(!age){toast("请填写年龄");return;}
+    if(!no){toast("请填写病案号");return;}
+    const key=String(no).toUpperCase();
+    if(DB.data.profiles[key]){toast("该身份已存在，已为您登录");loginAs(key);return;}
+    ensureProfile(no);
+    P().profile={name,gender:body.querySelector("#wGender").value,age:+age,medicalNo:no,created:today()};
+    DB.save();
+    const wn=document.getElementById("welcomeNurseSvg");if(wn)wn.classList.add("act-nod");
+    const msg=document.createElement("div");
+    msg.style.cssText="font-size:18px;color:var(--green-deep);font-weight:700;margin:10px 0;";
+    msg.textContent=`亲爱的${name}，接下来让我们一起加油吧！`;
+    body.querySelector("h1").insertAdjacentElement("afterend",msg);
+    setTimeout(()=>{transitionToApp();},1400);
+  };
+  const back=body.querySelector("#backBtn");if(back)back.onclick=welcomeLogin;
+}
+function loginAs(no){
+  DB.data.current=String(no).toUpperCase();DB.save();
+  transitionToApp();
+}
+function transitionToApp(){
+  document.getElementById("welcome").classList.add("hide");
+  setTimeout(()=>{document.getElementById("welcome").style.display="none";startApp();},600);
+}
+function goWelcome(){
+  const w=document.getElementById("welcome");
+  w.style.display="flex";w.classList.remove("hide");
+  document.getElementById("app").classList.remove("show");
+  showWelcome();
+}
+function showWelcome(){
+  if(window.innerWidth<=600)document.getElementById("sidebar").classList.add("collapsed");
+  if(DB.data.order.length===0)welcomeForm(true);
+  else welcomeLogin();
+}
+function boot(){
+  DB.load();
+  initNurse();
+  if(DB.data.current&&DB.data.profiles[DB.data.current]){document.getElementById("welcome").style.display="none";startApp();}
+  else showWelcome();
+  // 定时
+  setInterval(()=>{checkReminders();checkAllDone();},60000);
+  setInterval(()=>{document.getElementById("todayDate").textContent=fmtDateLabel(today())+" "+nowTime();},30000);
+  // 注册 Service Worker（仅当通过 https/localhost 提供服务时生效，本地 file:// 会安全失败）
+  if("serviceWorker" in navigator && location.protocol!=="file:"){
+    navigator.serviceWorker.register("sw.js").catch(()=>{});
+  }
+}
+boot();
+</script>
+</body>
+</html>
