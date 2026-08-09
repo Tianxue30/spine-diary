@@ -173,6 +173,11 @@
   .mood-opt.on{background:var(--green-light);border-color:var(--green);color:var(--green-deep);}
 
   .empty{color:var(--muted);font-size:14px;text-align:center;padding:18px 0;}
+  .food-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+  .food-row input{flex:1;min-width:0;padding:8px 10px;border:1.5px solid var(--line);border-radius:9px;background:#fbfdfc;outline:none;}
+  .food-row select{padding:8px 6px;border:1.5px solid var(--line);border-radius:9px;background:#fbfdfc;outline:none;}
+  .food-row .rm{flex:0 0 auto;color:var(--red);background:#fdecea;border-radius:9px;padding:6px 10px;font-weight:600;}
+  .summary-note{font-size:14px;line-height:1.7;background:var(--green-soft);border-radius:12px;padding:12px 14px;color:var(--text);}
 
   @media (max-width:600px){
     .sidebar{position:fixed;left:0;top:0;bottom:0;z-index:30;box-shadow:var(--shadow);}
@@ -208,7 +213,7 @@
     </nav>
     <div class="side-foot">
       <button id="backupBtn"><span class="ico">💾</span><span class="txt">数据备份</span></button>
-      <button id="switchBtn"><span class="ico">🔄</span><span class="txt">切换身份</span></button>
+      <button id="switchBtn"><span class="ico">🚪</span><span class="txt">退出登录</span></button>
     </div>
   </aside>
   <button class="collapse-btn" id="collapseBtn">‹</button>
@@ -556,13 +561,13 @@ function bindProgress(){
 function renderDiet(){
   const d=today();const stage=stageOf(d);
   const list=P().diet[d]||[];
-  const total=list.reduce((a,b)=>a+(b.cal||0),0);
+  const total=list.reduce((a,b)=>a+mealCal(b),0);
   const meals=["早餐","午餐","晚餐","加餐"];
   let html=`<div class="card"><h3><span class="em">🍱</span>今日饮食记录</h3>`;
   html+=`<div class="grid2" style="margin-bottom:8px"><div class="stat"><div class="n">${total}</div><div class="l">今日总热量(kcal)</div></div><div class="stat"><div class="n">${list.length}</div><div class="l">已记录餐次</div></div></div>`;
   html+=`<button class="btn solid" id="addMeal" style="width:100%;justify-content:center;margin-bottom:10px">＋ 记录一餐</button>`;
   // 折线图
-  const last7=[];for(let i=6;i>=0;i--){const dd=new Date();dd.setDate(dd.getDate()-i);const s=dd.getFullYear()+"-"+String(dd.getMonth()+1).padStart(2,"0")+"-"+String(dd.getDate()).padStart(2,"0");const t=(P().diet[s]||[]).reduce((a,b)=>a+(b.cal||0),0);last7.push({x:String(dd.getMonth()+1)+"/"+dd.getDate(),y:t});}
+  const last7=[];for(let i=6;i>=0;i--){const dd=new Date();dd.setDate(dd.getDate()-i);const s=dd.getFullYear()+"-"+String(dd.getMonth()+1).padStart(2,"0")+"-"+String(dd.getDate()).padStart(2,"0");const t=(P().diet[s]||[]).reduce((a,b)=>a+mealCal(b),0);last7.push({x:String(dd.getMonth()+1)+"/"+dd.getDate(),y:t});}
   html+=`<div style="margin-top:6px">${lineChart(last7,{ymin:0})}</div>`;
   html+=`</div>`;
 
@@ -581,6 +586,7 @@ function renderDiet(){
 
   // 历史折叠
   html+=renderHistory("diet",d,"饮食");
+  html+=dietSummaryCard();
   return html;
 }
 function bindDiet(){
@@ -608,44 +614,49 @@ function giRecord(type){
 /* 饮食录入模态 */
 function openMealModal(){
   const meals=["早餐","午餐","晚餐","加餐"];
-  const types=Object.keys(FOOD_DB);
   const box=document.getElementById("modalBox");
   box.innerHTML=`
     <h3>记录一餐</h3>
     <div class="field"><label>餐次</label><select id="mMeal">${meals.map(m=>`<option>${m}</option>`).join("")}</select></div>
     <div class="field"><label>进食时间</label><input id="mTime" type="time" value="${nowTime()}"></div>
-    <div class="field"><label>饮食类型（系统将自动识别建议）</label><select id="mType">${types.map(t=>`<option>${t}</option>`).join("")}</select></div>
-    <div class="field"><label>餐食照片（可选，自动压缩存储）</label><input id="mImg" type="file" accept="image/*"></div>
+    <div class="field"><label>餐食照片（可选）</label><input id="mImg" type="file" accept="image/*"></div>
     <div id="mPrev"></div>
-    <div class="field"><label>选择食物（自动累加热量）</label><div class="food-pick" id="mFoods"></div></div>
-    <div class="field"><label>或手动填写热量(kcal)</label><input id="mCal" type="number" min="0" placeholder="如 250"></div>
+    <div class="field"><label>餐食内容（可添加多种：填写食物名称与克数/毫升数）</label></div>
+    <div id="foodList"></div>
+    <button class="btn ghost" id="addFood" style="width:100%;justify-content:center;margin:4px 0 8px">＋ 添加一种餐食</button>
+    <div class="stat" style="margin-bottom:10px"><div class="n" id="calSum">0</div><div class="l">本餐热量(kcal，可留空)</div></div>
     <div class="modal-actions">
       <button class="btn ghost" id="mCancel">取消</button>
       <button class="btn solid" id="mSave">保存</button>
     </div>`;
   openModal();
-  const mType=box.querySelector("#mType");const mFoods=box.querySelector("#mFoods");const mPrev=box.querySelector("#mPrev");
-  let picked={};let imgData="";
-  function renderFoods(){
-    const t=mType.value;mFoods.innerHTML=FOOD_DB[t].map(([n,c])=>`<span class="food-opt ${picked[n]?"on":""}" data-n="${n}" data-c="${c}">${n} ${c}</span>`).join("");
-    mFoods.querySelectorAll(".food-opt").forEach(o=>o.onclick=()=>{const n=o.dataset.n;if(picked[n])delete picked[n];else picked[n]=+o.dataset.c;renderFoods();syncCal();});
+  const foodList=box.querySelector("#foodList");
+  let foods=[];let imgData="";
+  function addRow(f){
+    const row=document.createElement("div");row.className="food-row";
+    row.innerHTML=`<input class="fName" placeholder="食物名称，如 软米饭" value="${escHtml(f?f.name:"")}">
+      <input class="fAmt" type="number" min="0" placeholder="数量" value="${f?(f.amount||""):""}" style="max-width:72px">
+      <select class="fUnit"><option>克</option><option>毫升</option></select>
+      <input class="fCal" type="number" min="0" placeholder="kcal" value="${f&&f.cal?f.cal:""}" style="max-width:66px">
+      <button class="rm" type="button">✕</button>`;
+    if(f&&f.unit)row.querySelector(".fUnit").value=f.unit;
+    row.querySelector(".rm").onclick=()=>{foods=foods.filter(x=>x!==f);row.remove();updateCal();};
+    foodList.appendChild(row);
   }
-  function syncCal(){const sum=Object.values(picked).reduce((a,b)=>a+b,0);box.querySelector("#mCal").value=sum||"";}
-  renderFoods();
-  box.querySelector("#mImg").onchange=e=>{
-    const f=e.target.files[0];if(!f)return;
-    compressImage(f,360,data=>{imgData=data;mPrev.innerHTML=`<img class="meal-img" src="${data}" style="margin-top:8px">`;});
-  };
+  function updateCal(){box.querySelector("#calSum").textContent=foods.reduce((a,f)=>a+(+f.cal||0),0);}
+  box.querySelector("#addFood").onclick=()=>{const f={name:"",amount:"",unit:"克",cal:""};foods.push(f);addRow(f);};
+  box.querySelector("#mImg").onchange=e=>{const fl=e.target.files[0];if(!fl)return;compressImage(fl,360,data=>{imgData=data;box.querySelector("#mPrev").innerHTML=`<img class="meal-img" src="${data}" style="margin-top:8px">`;});};
   box.querySelector("#mCancel").onclick=closeModal;
   box.querySelector("#mSave").onclick=()=>{
-    const meal=box.querySelector("#mMeal").value;const time=box.querySelector("#mTime").value||nowTime();
-    const type=mType.value;let cal=parseInt(box.querySelector("#mCal").value)||0;
-    if(!cal&&Object.keys(picked).length===0){toast("请选择食物或填写热量");return;}
+    foodList.querySelectorAll(".food-row").forEach((row,i)=>{foods[i].name=row.querySelector(".fName").value;foods[i].amount=row.querySelector(".fAmt").value;foods[i].unit=row.querySelector(".fUnit").value;foods[i].cal=row.querySelector(".fCal").value;});
+    const valid=foods.filter(f=>f.name.trim()&&f.amount);
+    if(!valid.length){toast("请至少填写一种食物及数量");return;}
     const d=today();if(!P().diet[d])P().diet[d]=[];
-    P().diet[d].push({meal,time,type,cal,img:imgData,foods:Object.keys(picked),ts:stamp()});DB.save();
-    nurseSay("吃得不错，已帮你记好热量啦🍽️","thumb");
+    P().diet[d].push({meal:box.querySelector("#mMeal").value,time:box.querySelector("#mTime").value||nowTime(),img:imgData,foods:valid.map(f=>({name:f.name.trim(),amount:f.amount,unit:f.unit,cal:f.cal?+f.cal:0})),ts:stamp()});DB.save();
+    nurseSay("吃得不错，已帮你记好这一餐啦🍽️","thumb");
     closeModal();renderMod();
   };
+  box.querySelector("#addFood").click();
 }
 function compressImage(file,maxDim,cb){
   const r=new FileReader();r.onload=e=>{const img=new Image();img.onload=()=>{const sc=Math.min(1,maxDim/Math.max(img.width,img.height));const c=document.createElement("canvas");c.width=img.width*sc;c.height=img.height*sc;const ctx=c.getContext("2d");ctx.drawImage(img,0,0,c.width,c.height);cb(c.toDataURL("image/jpeg",0.6));};img.src=e.target.result;};r.readAsDataURL(file);
@@ -682,6 +693,7 @@ function renderPain(){
     ${bt.length?bt.slice().reverse().map(p=>`<div class="rec"><div class="hd"><span class="t">爆发痛 NRS ${p.nrs}</span><span class="m">${p.time}</span></div><div class="bd">原因：${p.cause}</div></div>`).join(""):'<p class="hint" style="margin-top:8px">暂无爆发痛</p>'}
   </div>`;
   html+=renderHistory("pain",d,"疼痛");
+  html+=painSummaryCard();
   return html;
 }
 function bindPain(){
@@ -718,17 +730,20 @@ function openPainModal(type,slot){
 
 /* ---- 运动 ---- */
 function renderSport(){
-  const d=today();const ex=P().exercise[d]||{legRaise:[],anklePump:[],oob:0};
+  const d=today();const ex=P().exercise[d]||{legRaise:[],anklePump:[],oob:[]};
   const vids=[
     {name:"床上直腿抬高运动",desc:"仰卧，单腿伸直缓慢抬高约30-45°，保持5秒后放下，左右交替。锻炼股四头肌，保护脊柱稳定。",src:"leg-raise.mp4"},
     {name:"踝泵运动",desc:"脚尖用力向上勾起保持数秒，再向下踩紧，反复进行。促进下肢血液循环，预防血栓。",src:""}
   ];
   let html=`<div class="card"><h3><span class="em">🤸</span>今日功能锻炼</h3>`;
+  const oobArr=getOobArr(ex.oob);const oobDur=oobArr.reduce((a,s)=>a+(+s.dur||0),0);
   html+=`<div class="grid2">
     <div class="rec"><div class="hd"><span class="t">床上直腿抬高</span><span class="m">${ex.legRaise.length} 次</span></div><button class="btn solid" id="ckLeg" style="margin-top:8px;width:100%;justify-content:center">✓ 打卡</button></div>
     <div class="rec"><div class="hd"><span class="t">踝泵运动</span><span class="m">${ex.anklePump.length} 次</span></div><button class="btn solid" id="ckAnkle" style="margin-top:8px;width:100%;justify-content:center">✓ 打卡</button></div>
   </div>`;
-  html+=`<div class="field" style="margin-top:10px"><label>下床活动时间（分钟）</label><input id="oob" type="number" min="0" value="${ex.oob||0}"></div>`;
+  html+=`<div class="rec" style="margin-top:10px"><div class="hd"><span class="t">下床活动</span><span class="m">${oobArr.length} 次 · 共 ${oobDur} 分钟</span></div>
+    <button class="btn solid" id="ckOob" style="margin-top:8px;width:100%;justify-content:center">🚶 下床活动打卡</button>
+    <div id="oobList" style="margin-top:8px"></div></div>`;
   html+=`</div>`;
   vids.forEach((v,i)=>{
     html+=`<div class="card"><h3><span class="em">🎬</span>${v.name}</h3><p class="hint">${v.desc}</p>`;
@@ -740,13 +755,15 @@ function renderSport(){
     html+=`</div>`;
   });
   html+=renderHistory("sport",d,"运动");
+  html+=sportSummaryCard();
   return html;
 }
 function bindSport(){
   const d=today();
   const ckL=document.getElementById("ckLeg");if(ckL)ckL.onclick=()=>{ensureEx(d);P().exercise[d].legRaise.push(nowTime());DB.save();nurseSay("直腿抬高做得好，加油！💪","thumb");renderMod();};
   const ckA=document.getElementById("ckAnkle");if(ckA)ckA.onclick=()=>{ensureEx(d);P().exercise[d].anklePump.push(nowTime());DB.save();nurseSay("踝泵运动打卡成功🌿","clap");renderMod();};
-  const oob=document.getElementById("oob");if(oob)oob.onchange=()=>{ensureEx(d);P().exercise[d].oob=Math.max(0,+oob.value||0);DB.save();};
+  const ckO=document.getElementById("ckOob");if(ckO)ckO.onclick=openOobModal;
+  const ol=document.getElementById("oobList");if(ol){const arr=getOobArr(P().exercise[d].oob);ol.innerHTML=arr.length?arr.slice().reverse().map(s=>`<div class="rec" style="margin-bottom:6px;padding:8px 10px"><div class="hd"><span class="t">${s.start||"?"} 开始</span><span class="m">${s.dur} 分钟</span></div></div>`).join(""):'<p class="hint" style="margin-top:6px">暂无下床活动记录</p>';}
   document.querySelectorAll(".video-box video").forEach(vid=>{
     vid.addEventListener("error",()=>{
       const box=vid.closest(".video-box");
@@ -755,7 +772,7 @@ function bindSport(){
   });
   bindHistory();
 }
-function ensureEx(d){if(!P().exercise[d])P().exercise[d]={legRaise:[],anklePump:[],oob:0};}
+function ensureEx(d){if(!P().exercise[d]){P().exercise[d]={legRaise:[],anklePump:[],oob:[]};}else if(!Array.isArray(P().exercise[d].oob)){const legacy=P().exercise[d].oob||0;P().exercise[d].oob=legacy?[{start:"",dur:legacy,ts:0,legacy:true}]:[];}}
 
 /* ---- 心情 + 日记 ---- */
 function renderMood(){
@@ -778,6 +795,7 @@ function renderMood(){
   }
   html+=`</div>`;
   html+=renderHistory("mood",d,"心情");
+  html+=moodSummaryCard();
   return html;
 }
 function bindMood(){
@@ -793,13 +811,14 @@ function bindMood(){
   };
   const gd=document.getElementById("genDiary");if(gd)gd.onclick=()=>{genDiary(d);renderMod();};
   const rd=document.getElementById("reDiary");if(rd)rd.onclick=()=>{genDiary(d);renderMod();};
+  const vd=document.getElementById("viewDiary");if(vd)vd.onclick=()=>{const dt=prevSummaryDate();if(dt&&P().diary&&P().diary[dt])showDiaryModal(dt);};
   bindHistory();
 }
-function genDiary(d){
+function genDiary(d, silent){
   const u=P().profile||{};const stage=stageOf(d);const stName=stage?STAGES.find(x=>x.key===stage).name:"";
   const diet=(P().diet[d]||[]);const dietCal=diet.reduce((a,b)=>a+(b.cal||0),0);
   const pain=(P().pain[d]||[]);const maxPain=pain.length?Math.max(...pain.map(p=>p.nrs)):0;
-  const ex=P().exercise[d]||{};const leg=(ex.legRaise||[]).length;const ankle=(ex.anklePump||[]).length;const oob=ex.oob||0;
+  const ex=P().exercise[d]||{};const leg=(ex.legRaise||[]).length;const ankle=(ex.anklePump||[]).length;const oobArr=getOobArr(ex.oob);const oobCnt=oobArr.length;const oobDur=oobArr.reduce((a,s)=>a+(+s.dur||0),0);
   const m=P().mood[d]||{};
   const gi=(P().gi&&P().gi[d])||[];
   const greet=`亲爱的${u.name||"朋友"}`;
@@ -807,12 +826,12 @@ function genDiary(d){
   body+=`今天是你在「${stName||"住院"}」阶段的一天。\n`;
   if(diet.length)body+=`🍱 今天你认真记录了 ${diet.length} 餐饮食，合计约 ${dietCal} 千卡，身体在悄悄补充能量。\n`;else body+=`🍱 今天还没记录饮食，记得按时吃饭、补充营养哦。\n`;
   if(pain.length)body+=`💢 今天共记录 ${pain.length} 次疼痛，最高 NRS ${maxPain} 分。疼痛是恢复路上的常客，我们一起慢慢管理它。\n`;else body+=`💢 今天还没有疼痛记录，若感到不适请随时告诉我们。\n`;
-  if(leg||ankle||oob)body+=`🤸 功能锻炼方面：直腿抬高 ${leg} 次、踝泵 ${ankle} 次、下床活动 ${oob} 分钟——每一次努力都在让脊梁更挺拔。\n`;else body+=`🤸 今天还没打卡运动，量力而行地动一动，对恢复很有帮助。\n`;
+  if(leg||ankle||oobCnt)body+=`🤸 功能锻炼方面：直腿抬高 ${leg} 次、踝泵 ${ankle} 次、下床活动 ${oobCnt} 次（共 ${oobDur} 分钟）——每一次努力都在让脊梁更挺拔。\n`;else body+=`🤸 今天还没打卡运动，量力而行地动一动，对恢复很有帮助。\n`;
   if(gi.length)body+=`💨 胃肠方面记录了：${gi.map(x=>x.type).join("、")}。\n`;
   if(m.mood)body+=`💗 今天的心情是「${m.mood}」${m.note?("，"+m.note):""}。\n`;
   body+=`\n愿你安心休养，配合治疗。挺拔的脊梁正在回来的路上，我们陪你一起，加油！🌿`;
   P().diary[d]=body;DB.save();
-  nurseSay("你的康复日记写好啦，看看今天的自己多棒💪","clap");
+  if(!silent)nurseSay("你的康复日记写好啦，看看今天的自己多棒💪","clap");
 }
 
 /* ---- 历史折叠 ---- */
@@ -824,9 +843,9 @@ function renderHistory(mod,d,_label){
   let html=`<div class="card"><h3><span class="em">📂</span>历史记录（点击展开）</h3>`;
   dates.forEach(dt=>{
     const recs=store[dt];let inner="";
-    if(mod==="diet")inner=recs.map(r=>`<div class="rec"><div class="hd"><span class="t">${r.meal} · ${r.type}</span><span class="m">${r.time} · ${r.cal}kcal</span></div>${r.img?`<img class="meal-img" src="${r.img}" style="margin-top:6px">`:""}</div>`).join("");
+    if(mod==="diet")inner=recs.map(r=>`<div class="rec"><div class="hd"><span class="t">${r.meal}</span><span class="m">${r.time} · ${mealCal(r)}kcal</span></div>${r.img?`<img class="meal-img" src="${r.img}" style="margin-top:6px">`:""}${r.foods&&r.foods.length?`<div class="bd">${r.foods.map(f=>`${escHtml(f.name)} ${f.amount}${f.unit}${f.cal?(" · "+f.cal+"kcal"):""}`).join("；")}</div>`:""}</div>`).join("");
     else if(mod==="pain")inner=recs.map(r=>`<div class="rec"><div class="hd"><span class="t">${r.type==="breakthrough"?"⚡爆发痛":"疼痛"} NRS ${r.nrs}</span><span class="m">${r.time}</span></div>${r.cause?`<div class="bd">${r.cause}</div>`:""}</div>`).join("");
-    else if(mod==="sport"){const e=recs;inner=`<div class="rec"><div class="bd">直腿抬高 ${(e.legRaise||[]).length} 次 · 踝泵 ${(e.anklePump||[]).length} 次 · 下床 ${e.oob||0} 分钟</div></div>`;}
+    else if(mod==="sport"){const e=recs;const arr=getOobArr(e.oob);inner=`<div class="rec"><div class="bd">直腿抬高 ${(e.legRaise||[]).length} 次 · 踝泵 ${(e.anklePump||[]).length} 次 · 下床 ${arr.length} 次（${arr.reduce((a,s)=>a+(+s.dur||0),0)} 分钟）</div></div>`;}
     else if(mod==="mood"){const e=recs;inner=`<div class="rec"><div class="bd">心情：${e.mood||"-"}${e.note?("；"+e.note):""}</div></div>`;}
     html+=`<div class="day-group"><div class="dh" data-dt="${dt}"><span class="dt">${fmtDateLabel(dt)}</span><span class="cnt">${Array.isArray(recs)?recs.length:(recs.legRaise?"1":1)} 条 ▾</span></div><div class="db">${inner}</div></div>`;
   });
@@ -836,13 +855,133 @@ function bindHistory(){
   document.querySelectorAll(".day-group .dh").forEach(h=>h.onclick=()=>h.parentElement.classList.toggle("open"));
 }
 
+/* ================= 每日总结 / 0点刷新 ================= */
+function mealCal(r){ if(r.foods&&r.foods.length) return r.foods.reduce((a,f)=>a+(+f.cal||0),0); return r.cal||0; }
+function getOobArr(oob){ if(Array.isArray(oob))return oob; if(typeof oob==="number"&&oob>0)return [{start:"",dur:oob,ts:0,legacy:true}]; return []; }
+function moodEmoji(m){return ({"开心":"😄","平静":"🙂","一般":"😐","担忧":"😟","难过":"😢"})[m]||"💗";}
+function getEx(date){return (P().exercise&&P().exercise[date])||{};}
+function barChart(items){
+  if(!items||!items.length)return '<div class="empty">暂无数据</div>';
+  const max=Math.max(...items.map(i=>i.val),1);const bw=34,gap=20,pad=12;const w=items.length*(bw+gap)+pad;
+  const bars=items.map((it,i)=>{const h=Math.max(2,(it.val/max)*100);const x=pad+i*(bw+gap);return `<g><rect x="${x}" y="${130-h}" width="${bw}" height="${h}" rx="5" fill="#3fae7a"/><text x="${x+bw/2}" y="${126-h}" font-size="10" fill="#3fae7a" text-anchor="middle">${it.val}</text><text x="${x+bw/2}" y="${144}" font-size="9" fill="#9aa" text-anchor="middle">${it.label}</text></g>`;}).join("");
+  return `<svg viewBox="0 0 ${w} 152" width="100%" style="max-width:${w}px">${bars}</svg>`;
+}
+function buildSummary(date){
+  const p=P();
+  const diet=(p.diet&&p.diet[date])||[];const gi=(p.gi&&p.gi[date])||[];const pain=(p.pain&&p.pain[date])||[];const ex=getEx(date);const m=(p.mood&&p.mood[date])||{};
+  let totalCal=0;const byType={};let meals=0;
+  diet.forEach(r=>{meals++;const cal=mealCal(r);totalCal+=cal;byType[r.meal]=(byType[r.meal]||0)+cal;});
+  const air=gi.filter(x=>x.type==="排气").length;const stool=gi.filter(x=>x.type==="排便").length;const bloat=gi.filter(x=>x.type==="腹胀").length;
+  const dietText=`饮食：记录 ${meals} 餐，共约 ${totalCal} 千卡${Object.keys(byType).length?("（"+Object.keys(byType).map(k=>k+" "+byType[k]+"kcal").join("、")+"）"):""}。`+(air||stool||bloat?`胃肠：排气 ${air} 次、排便 ${stool} 次、腹胀 ${bloat} 次。`:"");
+  const routine=pain.filter(x=>x.type==="routine");const bt=pain.filter(x=>x.type==="breakthrough");const ns=pain.map(x=>x.nrs);
+  const max=ns.length?Math.max(...ns):0;const avg=ns.length?Math.round(ns.reduce((a,b)=>a+b,0)/ns.length*10)/10:0;
+  const painText=`疼痛：共记录 ${pain.length} 次，最高 NRS ${max} 分（平均 ${avg} 分），其中爆发痛 ${bt.length} 次。`;
+  const leg=(ex.legRaise||[]).length;const ankle=(ex.anklePump||[]).length;const oobArr=getOobArr(ex.oob);const oobCount=oobArr.length;const oobDur=oobArr.reduce((a,s)=>a+(+s.dur||0),0);
+  const sportText=`运动：直腿抬高 ${leg} 次、踝泵 ${ankle} 次、下床活动 ${oobCount} 次（合计 ${oobDur} 分钟）。`;
+  return {diet:{totalCal,meals,byType,gi:{air,stool,bloat},text:dietText},pain:{max,avg,count:routine.length,btCount:bt.length,text:painText},sport:{leg,ankle,oobCount,oobDur,text:sportText},mood:{mood:m.mood||"",note:m.note||""}};
+}
+function prevSummaryDate(){
+  const p=P();const t=today();const dates=new Set();
+  ["diet","pain","exercise","mood","gi"].forEach(k=>{Object.keys(p[k]||{}).forEach(d=>dates.add(d));});
+  const arr=[...dates].filter(d=>d<t).sort();
+  return arr.length?arr[arr.length-1]:null;
+}
+function summaryFor(){const p=P();if(!p.summary)return "";const date=prevSummaryDate();if(!date)return "";if(!p.summary[date])return "";return {date,sum:p.summary[date]};}
+function dietSummaryCard(){
+  const s=summaryFor();if(!s)return "";const {date,sum}=s;const d=sum.diet;
+  const byMeal=Object.keys(d.byType).map(k=>({label:k,val:d.byType[k]})).filter(x=>x.val>0);
+  return `<div class="card" style="border-left:3px solid var(--green)"><h3><span class="em">📊</span>${fmtDateLabel(date)} 饮食总结</h3>
+    <div class="grid2" style="margin-bottom:8px"><div class="stat"><div class="n">${d.totalCal}</div><div class="l">总热量(kcal)</div></div><div class="stat"><div class="n">${d.meals}</div><div class="l">餐次</div></div></div>
+    ${byMeal.length?`<div style="margin:6px 0">${barChart(byMeal)}</div>`:""}
+    ${(d.gi.air||d.gi.stool||d.gi.bloat)?`<p class="hint" style="margin:6px 0">胃肠：排气 ${d.gi.air} 次 · 排便 ${d.gi.stool} 次 · 腹胀 ${d.gi.bloat} 次</p>`:""}
+    <div class="summary-note">${escHtml(d.text)}</div></div>`;
+}
+function painSummaryCard(){
+  const s=summaryFor();if(!s)return "";const {date,sum}=s;const p=sum.pain;
+  const routine=(P().pain[date]||[]).filter(x=>x.type==="routine");
+  const pts=PAIN_SLOTS.map(sl=>{const r=routine.find(x=>x.slot===sl);return r?{x:sl,y:r.nrs}:null;}).filter(Boolean);
+  return `<div class="card" style="border-left:3px solid var(--green)"><h3><span class="em">📊</span>${fmtDateLabel(date)} 疼痛总结</h3>
+    <div class="grid2" style="margin-bottom:8px"><div class="stat"><div class="n">${p.max}</div><div class="l">最高 NRS</div></div><div class="stat"><div class="n">${p.avg}</div><div class="l">平均 NRS</div></div></div>
+    ${(p.count||p.btCount)?`<p class="hint" style="margin:4px 0">常规记录 ${p.count} 次 · 爆发痛 ${p.btCount} 次</p>`:""}
+    ${pts.length?`<div style="margin:6px 0">${lineChart(pts,{ymin:0,ymax:10})}</div>`:""}
+    <div class="summary-note">${escHtml(p.text)}</div></div>`;
+}
+function sportSummaryCard(){
+  const s=summaryFor();if(!s)return "";const {date,sum}=s;const sp=sum.sport;
+  return `<div class="card" style="border-left:3px solid var(--green)"><h3><span class="em">📊</span>${fmtDateLabel(date)} 运动总结</h3>
+    <div class="grid2" style="margin-bottom:8px"><div class="stat"><div class="n">${sp.leg}</div><div class="l">直腿抬高(次)</div></div><div class="stat"><div class="n">${sp.ankle}</div><div class="l">踝泵(次)</div></div></div>
+    <div class="stat" style="margin-bottom:8px"><div class="n">${sp.oobCount}</div><div class="l">下床活动(次) · 共 ${sp.oobDur} 分钟</div></div>
+    <div class="summary-note">${escHtml(sp.text)}</div></div>`;
+}
+function moodSummaryCard(){
+  const s=summaryFor();if(!s)return "";const {date,sum}=s;const m=sum.mood;
+  if(!m.mood&&!m.note&&!(P().diary&&P().diary[date]))return "";
+  let html=`<div class="card" style="border-left:3px solid var(--green)"><h3><span class="em">📊</span>${fmtDateLabel(date)} 心情回顾</h3>`;
+  if(m.mood)html+=`<p class="mood-face" style="font-size:26px;margin:6px 0">${moodEmoji(m.mood)} ${m.mood}</p>`;
+  if(m.note)html+=`<div class="summary-note">${escHtml(m.note)}</div>`;
+  if(P().diary&&P().diary[date])html+=`<button class="btn ghost" id="viewDiary" style="margin-top:8px">📖 查看当日康复日记</button>`;
+  html+=`</div>`;return html;
+}
+function showDiaryModal(dt){
+  const box=document.getElementById("modalBox");
+  box.innerHTML=`<h3>${fmtDateLabel(dt)} 康复日记</h3><div class="summary-note" style="white-space:pre-wrap">${escHtml((P().diary&&P().diary[dt])||"")}</div><div class="modal-actions"><button class="btn solid" id="dClose">关闭</button></div>`;
+  openModal();box.querySelector("#dClose").onclick=closeModal;
+}
+function openOobModal(){
+  const box=document.getElementById("modalBox");
+  box.innerHTML=`
+    <h3>下床活动打卡</h3>
+    <p class="hint">每次下床活动后打卡，并记录本次开始时间与时长。</p>
+    <div class="field"><label>开始时间</label><input id="oStart" type="time" value="${nowTime()}"></div>
+    <div class="field"><label>本次时长（分钟）</label><input id="oDur" type="number" min="1" placeholder="如 20"></div>
+    <div class="modal-actions"><button class="btn ghost" id="oCancel">取消</button><button class="btn solid" id="oSave">打卡</button></div>`;
+  openModal();
+  box.querySelector("#oCancel").onclick=closeModal;
+  box.querySelector("#oSave").onclick=()=>{
+    const start=box.querySelector("#oStart").value||nowTime();
+    const dur=Math.max(0,+box.querySelector("#oDur").value||0);
+    if(!dur){toast("请填写本次时长");return;}
+    const d=today();ensureEx(d);P().exercise[d].oob.push({start,dur,ts:stamp()});DB.save();
+    nurseSay("下床活动打卡成功，多活动有助于恢复哦🚶","thumb");
+    closeModal();renderMod();
+  };
+}
+function finalizeDay(date){
+  const p=P();if(!p.summary)p.summary={};
+  if(!p.summary[date])p.summary[date]=buildSummary(date);
+  if(!(p.diary&&p.diary[date]))genDiary(date,true);
+  DB.save();
+}
+function backfillSummaries(){
+  const p=P();if(!p.summary)p.summary={};
+  const dates=new Set();
+  ["diet","pain","exercise","mood","gi"].forEach(k=>{Object.keys(p[k]||{}).forEach(d=>dates.add(d));});
+  const t=today();
+  [...dates].filter(d=>d<t).forEach(d=>{if(!p.summary[d]){p.summary[d]=buildSummary(d);if(!(p.diary&&p.diary[d]))genDiary(d,true);}});
+  DB.save();
+}
+function dailyRefreshCheck(){
+  if(!DB.data.current||!DB.data.profiles[DB.data.current])return;
+  const p=P();const t=today();
+  if(p.lastActiveDate&&p.lastActiveDate!==t){
+    finalizeDay(p.lastActiveDate);
+    p.lastActiveDate=t;DB.save();
+    backfillSummaries();
+    nurseSay("新的一天开始啦！昨天的情况已经为你整理成总结，去各模块看看吧🌿","wave");
+    renderMod();
+  }else if(!p.lastActiveDate){
+    p.lastActiveDate=t;DB.save();
+    backfillSummaries();
+  }
+}
+
 /* ================= 每日完成判定 ================= */
 function dayChecklist(d){
   const stage=stageOf(d);
   const diet=(P().diet[d]||[]).length>0;
   const pain=(P().pain[d]||[]).length>0;
   const ex=P().exercise[d]||{};
-  const sport=((ex.legRaise||[]).length>0)&&((ex.anklePump||[]).length>0)&&((ex.oob||0)>0);
+  const sport=((ex.legRaise||[]).length>0)&&((ex.anklePump||[]).length>0)&&(getOobArr(ex.oob).length>0);
   const mood=!!P().mood[d];
   return [
     {tx:"勾选今日治疗进度",done:!!stage},
@@ -912,7 +1051,7 @@ document.getElementById("backupBtn").onclick=()=>{
   toast("数据已导出为备份文件");
 };
 // 切换身份 → 返回欢迎/登录页
-document.getElementById("switchBtn").onclick=goWelcome;
+document.getElementById("switchBtn").onclick=()=>{allDoneToday=false;goWelcome();};
 
 /* ================= Excel 全量导出 ================= */
 function isNumCell(v){return typeof v==="number"||(typeof v==="string"&&v!==""&&!/[\s]/.test(v)&&!isNaN(v)&&/^[+-]?[\d.]+$/.test(v));}
@@ -947,10 +1086,10 @@ function exportExcel(){
     const p=DB.data.profiles[no];if(!p)return;const pf=p.profile||{};const name=pf.name||"";const medno=pf.medicalNo||no;
     sheets["患者基本信息"].push([name,pf.gender||"",pf.age!=null?pf.age:"",medno,pf.created||""]);
     Object.keys(p.stage||{}).forEach(d=>sheets["进度"].push([medno,name,d,stName(p.stage[d])]));
-    Object.keys(p.diet||{}).forEach(d=>(p.diet[d]||[]).forEach(r=>sheets["饮食"].push([medno,name,d,r.meal,r.type,r.time,r.cal,r.foods?r.foods.join("、"):""])));
+    Object.keys(p.diet||{}).forEach(d=>(p.diet[d]||[]).forEach(r=>{const foods=(r.foods&&r.foods.length)?r.foods.map(f=>`${f.name} ${f.amount}${f.unit}`).join("、"):"";sheets["饮食"].push([medno,name,d,r.meal,r.type||"",r.time,mealCal(r),foods]);}));
     Object.keys(p.pain||{}).forEach(d=>(p.pain[d]||[]).forEach(r=>sheets["疼痛"].push([medno,name,d,r.type==="breakthrough"?"爆发痛":"常规",r.time,r.nrs,r.cause||r.note||""])));
     Object.keys(p.gi||{}).forEach(d=>(p.gi[d]||[]).forEach(r=>sheets["胃肠"].push([medno,name,d,r.type,r.time])));
-    Object.keys(p.exercise||{}).forEach(d=>{const e=p.exercise[d]||{};sheets["运动"].push([medno,name,d,"床上直腿抬高",(e.legRaise||[]).length+" 次"]);sheets["运动"].push([medno,name,d,"踝泵运动",(e.anklePump||[]).length+" 次"]);sheets["运动"].push([medno,name,d,"下床活动",(e.oob||0)+" 分钟"]);});
+    Object.keys(p.exercise||{}).forEach(d=>{const e=p.exercise[d]||{};const arr=getOobArr(e.oob);sheets["运动"].push([medno,name,d,"床上直腿抬高",(e.legRaise||[]).length+" 次"]);sheets["运动"].push([medno,name,d,"踝泵运动",(e.anklePump||[]).length+" 次"]);sheets["运动"].push([medno,name,d,"下床活动",arr.length+" 次 / "+arr.reduce((a,s)=>a+(+s.dur||0),0)+" 分钟"]);});
     Object.keys(p.mood||{}).forEach(d=>{const m=p.mood[d]||{};sheets["心情日记"].push([medno,name,d,m.mood||"",m.note||"",(p.diary&&p.diary[d])||""]);});
   });
   downloadFile(buildXls(sheets),"脊柱矫正日记_全量数据_"+today()+".xls","application/vnd.ms-excel");
@@ -965,6 +1104,7 @@ function startApp(){
   setMod("progress");
   checkReminders();
   checkAllDone();
+  dailyRefreshCheck();
   // 进入问候
   const u=P().profile||{};
   setTimeout(()=>nurseSay(`亲爱的${u.name}，我来陪你啦，我们一起加油！🌿`,"wave"),900);
@@ -1051,7 +1191,7 @@ function boot(){
   if(DB.data.current&&DB.data.profiles[DB.data.current]){document.getElementById("welcome").style.display="none";startApp();}
   else showWelcome();
   // 定时
-  setInterval(()=>{checkReminders();checkAllDone();},60000);
+  setInterval(()=>{checkReminders();checkAllDone();dailyRefreshCheck();},60000);
   setInterval(()=>{document.getElementById("todayDate").textContent=fmtDateLabel(today())+" "+nowTime();},30000);
   // 注册 Service Worker（仅当通过 https/localhost 提供服务时生效，本地 file:// 会安全失败）
   if("serviceWorker" in navigator && location.protocol!=="file:"){
