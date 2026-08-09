@@ -2,14 +2,26 @@
   "name": "我的脊柱矫正日记",
   "short_name": "脊柱矫正日记",
   "description": "青少年特发性脊柱侧凸住院期自主病情记录与康复锻炼提醒工作台",
-  "start_url": ".",
-  "scope": ".",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#e9f7f0",
   "theme_color": "#3fae7a",
   "lang": "zh-CN",
   "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
     {
       "src": "icon.svg",
       "sizes": "any",
