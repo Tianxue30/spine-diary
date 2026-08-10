@@ -1195,7 +1195,10 @@ function boot(){
   setInterval(()=>{document.getElementById("todayDate").textContent=fmtDateLabel(today())+" "+nowTime();},30000);
   // 注册 Service Worker（仅当通过 https/localhost 提供服务时生效，本地 file:// 会安全失败）
   if("serviceWorker" in navigator && location.protocol!=="file:"){
-    navigator.serviceWorker.register("sw.js").catch(()=>{});
+    // 带版本号注册并禁用 SW 脚本缓存，确保重新部署后手机端能立即更新
+    navigator.serviceWorker.register("sw.js?v=3",{updateViaCache:"none"})
+      .then(r=>{r.update();})
+      .catch(()=>{});
   }
 }
 boot();
